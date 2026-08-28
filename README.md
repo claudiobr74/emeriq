@@ -28,13 +28,12 @@ A chave fica só no `.env.local`. Nunca use `NEXT_PUBLIC_GROQ_API_KEY` e não fa
 
 ## Deploy no Netlify (via GitHub)
 
-O repositório já inclui `netlify.toml` (Node 22, pnpm, hoist para Next.js). O adapter Next.js do Netlify é aplicado automaticamente — não instale `@netlify/plugin-nextjs` no projeto.
+O repositório inclui `netlify.toml` (Node 22, pnpm) e o plugin `@netlify/plugin-nextjs`. Sem esse plugin o Netlify publica a pasta errada e a home vira o 404 padrão (“Page not found”).
 
-1. Faça merge da branch de trabalho em `main` (há um pull request aberto).
+1. Branch de produção: `main`.
 2. No [Netlify](https://app.netlify.com): **Add new site → Import an existing project → GitHub → `claudiobr74/emeriq`**.
-   - Branch de produção: `main`
-   - Build command: `pnpm run build` (já vem do `netlify.toml`)
-   - Publish directory: deixe o Netlify detectar (Next.js)
+   - Build command: `pnpm run build`
+   - Publish directory: `.next`
 3. Em **Site configuration → Environment variables**, crie:
 
    | Nome | Valor |
@@ -47,7 +46,9 @@ O repositório já inclui `netlify.toml` (Node 22, pnpm, hoist para Next.js). O 
 
 Não cole a chave no repositório, em `netlify.toml` nem em variável `NEXT_PUBLIC_*`.
 
-Se o site já estiver conectado ao GitHub, só falta a variável `GROQ_API_KEY` e um deploy a partir de `main`.
+Se o site já estiver conectado ao GitHub, confirme **Publish directory = `.next`**, a variável `GROQ_API_KEY` e um **Trigger deploy** a partir de `main`.
+
+Se aparecer “Page not found” da Netlify, o runtime do Next.js não está ativo: o `netlify.toml` deste repo já corrige isso. Faça um novo deploy depois do merge.
 
 ### Timeout das APIs no Netlify
 
