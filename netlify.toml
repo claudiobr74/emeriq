@@ -1,14 +1,11 @@
 # Next.js no Netlify: o adapter OpenNext é aplicado automaticamente.
 # Não pinamos @netlify/plugin-nextjs para receber atualizações do runtime.
+# Não definimos [functions].timeout aqui: no plano gratuito isso estoura o teto
+# de 10s e o deploy falha na validação. No Pro, o aumento para 26s é pedido ao suporte.
 [build]
   command = "pnpm run build"
-  publish = ".next"
 
 [build.environment]
   NODE_VERSION = "22"
   PNPM_VERSION = "10.33.3"
   PNPM_FLAGS = "--shamefully-hoist"
-
-# Teto do plano Pro. No plano gratuito o Netlify limita a ~10s.
-[functions]
-  timeout = 26

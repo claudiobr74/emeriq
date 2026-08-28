@@ -9,7 +9,7 @@ export function getGroqClient(): Groq {
   const apiKey = getGroqApiKey();
   if (!apiKey) {
     throw new AppError(
-      "GROQ_API_KEY não encontrada. Crie o arquivo .env.local na mesma pasta do package.json, em UTF-8, com a linha GROQ_API_KEY=gsk_... (sem aspas e sem espaço depois do =). Depois pare o servidor e rode pnpm dev de novo.",
+      "GROQ_API_KEY não encontrada. No uso local, crie .env.local na pasta do package.json (UTF-8) com GROQ_API_KEY=gsk_... (sem aspas). No Netlify, defina GROQ_API_KEY em Site configuration → Environment variables (Production e Preview) e faça um novo deploy.",
       "missing_api_key",
       500,
     );
