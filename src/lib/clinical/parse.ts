@@ -147,24 +147,46 @@ export function salvageClinicalState(raw: unknown): ClinicalState {
   const hpi = isRecord(obj.historyPresentIllness) ? obj.historyPresentIllness : {};
   const patient = isRecord(obj.patient) ? obj.patient : {};
   const vitals = isRecord(obj.vitalSigns) ? obj.vitalSigns : {};
+  const age = asNumber(patient.age ?? obj.idade ?? obj.age);
+  const sex = asNullableString(patient.sex ?? obj.sexo ?? obj.sex);
+  const complaint = asNullableString(
+    obj.chiefComplaint ?? obj.queixa ?? obj.queixaPrincipal,
+  );
+  const questions = asStringArray(
+    obj.suggestedQuestions ?? obj.perguntas ?? obj.questions,
+    5,
+  );
+  const hypothesesSource = Array.isArray(obj.hypotheses)
+    ? obj.hypotheses
+    : Array.isArray(obj.hipoteses)
+      ? obj.hipoteses
+      : [];
+  const alertsSource = Array.isArray(obj.alerts)
+    ? obj.alerts
+    : Array.isArray(obj.alertas)
+      ? obj.alertas
+      : [];
+  const symptoms = asStringArray(
+    hpi.associatedSymptoms ?? obj.sintomas ?? obj.symptoms,
+  );
 
   return {
     ...empty,
     patient: {
-      age: asNumber(patient.age),
-      sex: asNullableString(patient.sex),
+      age,
+      sex,
     },
-    chiefComplaint: asNullableString(obj.chiefComplaint),
+    chiefComplaint: complaint,
     historyPresentIllness: {
       onset: asNullableString(hpi.onset),
-      duration: asNullableString(hpi.duration),
+      duration: asNullableString(hpi.duration ?? obj.tempo_sintomas_minutos),
       location: asNullableString(hpi.location),
       character: asNullableString(hpi.character),
       radiation: asNullableString(hpi.radiation),
       intensity: asNullableString(hpi.intensity),
       aggravatingFactors: asStringArray(hpi.aggravatingFactors),
       relievingFactors: asStringArray(hpi.relievingFactors),
-      associatedSymptoms: asStringArray(hpi.associatedSymptoms),
+      associatedSymptoms: symptoms,
     },
     pastMedicalHistory: asStringArray(obj.pastMedicalHistory),
     medications: asStringArray(obj.medications),
@@ -184,7 +206,7 @@ export function salvageClinicalState(raw: unknown): ClinicalState {
     reportedFacts: asStringArray(obj.reportedFacts),
     observedFindings: asStringArray(obj.observedFindings),
     inferences: asStringArray(obj.inferences),
-    hypotheses: (Array.isArray(obj.hypotheses) ? obj.hypotheses : [])
+    hypotheses: hypothesesSource
       .map(asHypothesis)
       .filter((item): item is ClinicalHypothesis => Boolean(item))
       .slice(0, 6),
@@ -195,7 +217,7 @@ export function salvageClinicalState(raw: unknown): ClinicalState {
       .filter((item): item is ClinicalHypothesis => Boolean(item))
       .slice(0, 5),
     missingInformation: asStringArray(obj.missingInformation, 8),
-    suggestedQuestions: asStringArray(obj.suggestedQuestions, 5),
+    suggestedQuestions: questions,
     suggestedTests: (Array.isArray(obj.suggestedTests) ? obj.suggestedTests : [])
       .map(asSuggestion)
       .filter((item): item is ClinicalSuggestion => Boolean(item))
@@ -206,7 +228,7 @@ export function salvageClinicalState(raw: unknown): ClinicalState {
       .map(asSuggestion)
       .filter((item): item is ClinicalSuggestion => Boolean(item))
       .slice(0, 6),
-    alerts: (Array.isArray(obj.alerts) ? obj.alerts : [])
+    alerts: alertsSource
       .map(asAlert)
       .filter((item): item is ClinicalAlert => Boolean(item))
       .slice(0, 5),

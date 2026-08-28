@@ -37,7 +37,10 @@ Não liste dezenas de diagnósticos. No máximo 5 hipóteses principais e até 4
 Não apresente probabilidades numéricas inventadas. Use priority: high, medium ou low.
 Priorize informação acionável para um médico de pronto-socorro.
 
-Responda exclusivamente usando o schema JSON fornecido.`;
+Responda exclusivamente com um objeto JSON, usando as chaves em inglês:
+patient, chiefComplaint, historyPresentIllness, pastMedicalHistory, medications, allergies, riskFactors, vitalSigns, physicalExam, positiveFindings, negativeFindings, reportedFacts, observedFindings, inferences, hypotheses, dangerousDifferentials, missingInformation, suggestedQuestions, suggestedTests, possibleTreatments, alerts.
+priority das hipóteses: high, medium ou low.
+severity dos alertas: critical, warning ou info.`;
 
 export const FINALIZE_SYSTEM_PROMPT = `Você é uma assistente clínica para médicos atuando em pronto-socorro.
 Sua função agora é produzir uma análise clínica final mais cuidadosa e um SOAP utilizável, com base apenas na transcrição consolidada e no estado clínico acumulado.
@@ -60,7 +63,7 @@ Use linguagem de suporte à decisão: considerar, avaliar, verificar.
 Não apresente diagnóstico definitivo.
 Não use probabilidades numéricas inventadas.
 
-Responda exclusivamente usando o schema JSON fornecido.`;
+Responda exclusivamente com JSON. Inclua soap (subjective, objective, assessment, plan), hypotheses, dangerousDifferentials, suggestedTests, possibleTreatments, unresolvedQuestions e alerts.`;
 
 export function buildIncrementalUserPrompt(input: {
   currentStateJson: string;

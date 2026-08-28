@@ -1,4 +1,3 @@
-import { z } from "zod";
 import { AI_CONFIG } from "@/config/ai";
 import {
   FINALIZE_SYSTEM_PROMPT,
@@ -6,19 +5,10 @@ import {
   buildFinalizeUserPrompt,
   buildIncrementalUserPrompt,
 } from "@/lib/clinical/prompts";
-import {
-  clinicalStateJsonSchema,
-  finalReportJsonSchema,
-} from "@/lib/clinical/json-schema";
-import {
-  clinicalStateSchema,
-  finalClinicalReportSchema,
-  type ClinicalState,
-  type FinalClinicalReport,
-} from "@/lib/clinical/schemas";
 import { AppError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import { getGroqClient } from "@/lib/groq/client";
+import type { ClinicalState, FinalClinicalReport } from "@/lib/clinical/schemas";
 import {
   extractJsonObject,
   salvageClinicalState,
@@ -70,21 +60,33 @@ function parseJsonPayload(text: string): unknown {
   return extractJsonObject(text);
 }
 
+function groqUserMessage(error: unknown): string {
+  const status = (error as { status?: number }).status;
+  const raw = error instanceof Error ? error.message : "";
+  if (status === 413 || raw.includes("rate_limit_exceeded") || raw.includes("Request too large")) {
+    return "O modelo clínico excedeu o limite de tokens da Groq. A gravação continua; nova tentativa em instantes.";
+  }
+  if (status === 429) {
+    return "Limite de uso da Groq atingido. A gravação continua.";
+  }
+  if (status === 401 || status === 403) {
+    return "Falha de autenticação com a Groq. Verifique GROQ_API_KEY.";
+  }
+  return "A análise clínica falhou. A gravação continua.";
+}
+
 async function completeJson<T>(input: {
   system: string;
   user: string;
-  schemaName: string;
-  schema: Record<string, unknown>;
-  zodSchema: z.ZodType<T>;
   salvage: (raw: unknown) => T;
-  reasoning: "low" | "medium" | "high" | "none";
+  reasoning: "low" | "medium" | "high";
   maxTokens: number;
   timeoutMs: number;
   label: "ClinicalUpdate" | "ClinicalFinalize";
 }): Promise<T> {
   const groq = getGroqClient();
 
-  const run = async (extraUser?: string, useSchema = true) => {
+  const run = async () => {
     const response = await groq.chat.completions.create(
       {
         model: AI_CONFIG.clinicalModel,
@@ -94,61 +96,25 @@ async function completeJson<T>(input: {
         max_completion_tokens: input.maxTokens,
         messages: [
           { role: "system", content: input.system },
-          {
-            role: "user",
-            content: extraUser ? `${input.user}\n\n${extraUser}` : input.user,
-          },
+          { role: "user", content: input.user },
         ],
-        response_format: useSchema
-          ? {
-              type: "json_schema",
-              json_schema: {
-                name: input.schemaName,
-                strict: false,
-                schema: input.schema,
-              },
-            }
-          : { type: "json_object" },
+        response_format: { type: "json_object" },
       },
       { timeout: input.timeoutMs },
     );
 
     const content = extractMessageJson(response.choices[0]?.message);
     const parsed = parseJsonPayload(content);
-    try {
-      return input.zodSchema.parse(input.salvage(parsed));
-    } catch (zodError) {
-      logger.clinicalUpdate("zod salvage parse", {
-        issues:
-          zodError instanceof z.ZodError
-            ? zodError.issues.map((issue) => issue.path.join("."))
-            : "unknown",
-      });
-      return input.salvage(parsed);
-    }
+    return input.salvage(parsed);
   };
 
   try {
-    return await run(undefined, false);
+    return await run();
   } catch (error) {
-    logger.clinicalUpdate(`${input.label} json_object failed, retrying schema`, {
-      message: error instanceof Error ? error.message : "unknown",
+    logger.clinicalUpdate(`${input.label} failed`, {
+      message: error instanceof Error ? error.message.slice(0, 300) : "unknown",
     });
-    try {
-      return await run(
-        "Responda novamente apenas com JSON válido no schema, sem texto extra.",
-        true,
-      );
-    } catch (retryError) {
-      logger.clinicalUpdate(`${input.label} recovery failed`, {
-        message: retryError instanceof Error ? retryError.message : "unknown",
-      });
-      throw new AppError(
-        "A análise clínica retornou uma resposta inválida.",
-        "invalid_clinical_response",
-        502,
-      );
-    }
+    throw new AppError(groqUserMessage(error), "clinical_model_failed", 502);
   }
 }
 
@@ -166,9 +132,6 @@ export class GroqClinicalProvider implements ClinicalAIProvider {
         confirmedTranscript: input.confirmedTranscript,
         newSegment: input.newSegment,
       }),
-      schemaName: "clinical_state",
-      schema: clinicalStateJsonSchema as unknown as Record<string, unknown>,
-      zodSchema: clinicalStateSchema,
       salvage: salvageClinicalState,
       reasoning: AI_CONFIG.reasoning.update,
       maxTokens: AI_CONFIG.maxCompletionTokens.update,
@@ -188,9 +151,6 @@ export class GroqClinicalProvider implements ClinicalAIProvider {
         currentStateJson: JSON.stringify(input.state),
         transcript: input.transcript,
       }),
-      schemaName: "final_clinical_report",
-      schema: finalReportJsonSchema as unknown as Record<string, unknown>,
-      zodSchema: finalClinicalReportSchema,
       salvage: salvageFinalReport,
       reasoning: AI_CONFIG.reasoning.finalize,
       maxTokens: AI_CONFIG.maxCompletionTokens.finalize,

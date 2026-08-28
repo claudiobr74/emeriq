@@ -14,16 +14,16 @@ export const AI_CONFIG = {
   },
   reasoning: {
     update: "low" as const,
-    finalize: "medium" as const,
+    finalize: "low" as const,
   },
   timeouts: {
     transcriptionMs: 30_000,
-    clinicalUpdateMs: 60_000,
-    clinicalFinalizeMs: 90_000,
+    clinicalUpdateMs: 45_000,
+    clinicalFinalizeMs: 60_000,
   },
   maxCompletionTokens: {
-    update: 8_000,
-    finalize: 10_000,
+    update: 2_000,
+    finalize: 2_500,
   },
 } as const;
 
