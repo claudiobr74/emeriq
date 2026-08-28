@@ -19,6 +19,11 @@ import {
 import { AppError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import { getGroqClient } from "@/lib/groq/client";
+import {
+  extractJsonObject,
+  salvageClinicalState,
+  salvageFinalReport,
+} from "@/lib/clinical/parse";
 
 export interface ClinicalUpdateInput {
   currentState: ClinicalState;
@@ -62,13 +67,7 @@ function extractMessageJson(message: {
 }
 
 function parseJsonPayload(text: string): unknown {
-  const trimmed = text.trim();
-  if (!trimmed) {
-    throw new Error("empty_model_content");
-  }
-  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  const raw = fenced ? fenced[1]!.trim() : trimmed;
-  return JSON.parse(raw);
+  return extractJsonObject(text);
 }
 
 async function completeJson<T>(input: {
@@ -77,6 +76,7 @@ async function completeJson<T>(input: {
   schemaName: string;
   schema: Record<string, unknown>;
   zodSchema: z.ZodType<T>;
+  salvage: (raw: unknown) => T;
   reasoning: "low" | "medium" | "high" | "none";
   maxTokens: number;
   timeoutMs: number;
@@ -104,7 +104,7 @@ async function completeJson<T>(input: {
               type: "json_schema",
               json_schema: {
                 name: input.schemaName,
-                strict: true,
+                strict: false,
                 schema: input.schema,
               },
             }
@@ -115,20 +115,34 @@ async function completeJson<T>(input: {
 
     const content = extractMessageJson(response.choices[0]?.message);
     const parsed = parseJsonPayload(content);
-    return input.zodSchema.parse(parsed);
+    try {
+      return input.zodSchema.parse(input.salvage(parsed));
+    } catch (zodError) {
+      logger.clinicalUpdate("zod salvage parse", {
+        issues:
+          zodError instanceof z.ZodError
+            ? zodError.issues.map((issue) => issue.path.join("."))
+            : "unknown",
+      });
+      return input.salvage(parsed);
+    }
   };
 
   try {
-    return await run();
+    return await run(undefined, false);
   } catch (error) {
-    logger.error(`${input.label} parse/request failed, retrying`, error);
+    logger.clinicalUpdate(`${input.label} json_object failed, retrying schema`, {
+      message: error instanceof Error ? error.message : "unknown",
+    });
     try {
       return await run(
-        "A resposta anterior foi inválida. Responda novamente apenas com JSON válido no schema, sem texto extra.",
-        false,
+        "Responda novamente apenas com JSON válido no schema, sem texto extra.",
+        true,
       );
     } catch (retryError) {
-      logger.error(`${input.label} recovery failed`, retryError);
+      logger.clinicalUpdate(`${input.label} recovery failed`, {
+        message: retryError instanceof Error ? retryError.message : "unknown",
+      });
       throw new AppError(
         "A análise clínica retornou uma resposta inválida.",
         "invalid_clinical_response",
@@ -155,6 +169,7 @@ export class GroqClinicalProvider implements ClinicalAIProvider {
       schemaName: "clinical_state",
       schema: clinicalStateJsonSchema as unknown as Record<string, unknown>,
       zodSchema: clinicalStateSchema,
+      salvage: salvageClinicalState,
       reasoning: AI_CONFIG.reasoning.update,
       maxTokens: AI_CONFIG.maxCompletionTokens.update,
       timeoutMs: AI_CONFIG.timeouts.clinicalUpdateMs,
@@ -176,6 +191,7 @@ export class GroqClinicalProvider implements ClinicalAIProvider {
       schemaName: "final_clinical_report",
       schema: finalReportJsonSchema as unknown as Record<string, unknown>,
       zodSchema: finalClinicalReportSchema,
+      salvage: salvageFinalReport,
       reasoning: AI_CONFIG.reasoning.finalize,
       maxTokens: AI_CONFIG.maxCompletionTokens.finalize,
       timeoutMs: AI_CONFIG.timeouts.clinicalFinalizeMs,

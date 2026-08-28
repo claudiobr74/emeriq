@@ -182,7 +182,7 @@ export function useClinicalSession() {
         }
         return;
       }
-      logger.error("clinical update failed", error);
+      logger.clinicalUpdate("clinical update failed", error);
       lastAnalyzedAtRef.current = Date.now();
       setClinicalError(
         error instanceof Error

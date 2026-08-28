@@ -12,6 +12,10 @@ export const logger = {
   clinicalFinalize: (...args: unknown[]) => log("ClinicalFinalize", ...args),
   error: (...args: unknown[]) => {
     if (!isDev) return;
-    console.error("[Error]", ...args);
+    if (typeof window === "undefined") {
+      console.error("[Error]", ...args);
+      return;
+    }
+    console.warn("[Error]", ...args);
   },
 };

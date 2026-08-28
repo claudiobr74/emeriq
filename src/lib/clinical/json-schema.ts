@@ -27,10 +27,7 @@ const suggestionSchema = {
   properties: {
     item: { type: "string" },
     rationale: { type: "string" },
-    priority: {
-      type: ["string", "null"],
-      enum: ["immediate", "urgent", "routine", null],
-    },
+    priority: { type: "string", enum: ["immediate", "urgent", "routine"] },
   },
   required: ["item", "rationale", "priority"],
 };
