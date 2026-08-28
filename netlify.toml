@@ -1,11 +1,15 @@
-# Next.js no Netlify: o adapter OpenNext é aplicado automaticamente.
-# Não pinamos @netlify/plugin-nextjs para receber atualizações do runtime.
-# Não definimos [functions].timeout aqui: no plano gratuito isso estoura o teto
-# de 10s e o deploy falha na validação. No Pro, o aumento para 26s é pedido ao suporte.
+# Next.js no Netlify: o plugin cria as funções serverless. Sem ele o site
+# sobe como estático e a home vira o 404 padrão da Netlify.
+# O pacote em package.json garante a versão; o bloco [[plugins]] força a execução
+# mesmo se o site foi criado antes do app Next.js existir.
 [build]
   command = "pnpm run build"
+  publish = ".next"
 
 [build.environment]
   NODE_VERSION = "22"
   PNPM_VERSION = "10.33.3"
   PNPM_FLAGS = "--shamefully-hoist"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
