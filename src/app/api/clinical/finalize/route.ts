@@ -6,7 +6,7 @@ import { clinicalAIProvider } from "@/lib/groq/clinical";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
+export const maxDuration = 26;
 
 export async function POST(request: Request) {
   try {

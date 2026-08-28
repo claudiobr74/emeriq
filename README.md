@@ -6,55 +6,53 @@ Ferramenta de apoio ao profissional médico. Não substitui julgamento clínico.
 
 ## Pré-requisitos
 
-- Node.js 20 ou superior
+- Node.js 20 ou superior (recomendado 22)
 - pnpm
+- chave da Groq (`GROQ_API_KEY`)
 
-## Instalação
+## Uso local
 
 ```bash
+git clone https://github.com/claudiobr74/emeriq.git
+cd emeriq
 pnpm install
-```
-
-## Configuração (macOS)
-
-A chave **não vai para o GitHub**. Ela fica só no Mac, no arquivo `.env.local`, **na mesma pasta do `package.json`**.
-
-No Terminal:
-
-```bash
-cd ~/emeriq
-ls package.json
-```
-
-Se `package.json` não aparecer, você não está na pasta certa. Use `pwd` e entre na pasta do clone.
-
-Grave a chave **nessa pasta** (não use o TextEdit):
-
-```bash
 printf 'GROQ_API_KEY=gsk_COLE_SUA_CHAVE_AQUI\n' > .env.local
-ls -a .env.local package.json
-grep -E '^GROQ_API_KEY=gsk_.+' .env.local && echo "ok, gravou" || echo "ainda vazio"
-```
-
-Sem aspas, sem espaço depois do `=`. Nunca use `NEXT_PUBLIC_GROQ_API_KEY`.
-
-Pare o servidor (Ctrl+C) e suba de novo **na mesma pasta**:
-
-```bash
 pnpm dev
 ```
 
-Confira em [http://localhost:3000/api/health](http://localhost:3000/api/health): deve aparecer `{"groqConfigured":true}`.
+Abra [http://localhost:3000](http://localhost:3000).
 
-## Rodar
+Confira a chave sem expô-la: [http://localhost:3000/api/health](http://localhost:3000/api/health) deve retornar `{"groqConfigured":true}`.
 
-```bash
-pnpm dev
-```
+A chave fica só no `.env.local`. Nunca use `NEXT_PUBLIC_GROQ_API_KEY` e não faça commit desse arquivo.
 
-Abrir [http://localhost:3000](http://localhost:3000). Para conferir a chave sem expô-la, abra também [http://localhost:3000/api/health](http://localhost:3000/api/health): deve aparecer `{"groqConfigured":true}`.
+## Deploy no Netlify (via GitHub)
 
-Inicie o atendimento e autorize o microfone.
+1. No GitHub, use a branch `main` deste repositório.
+2. No [Netlify](https://app.netlify.com): **Add new site → Import an existing project → GitHub → `claudiobr74/emeriq`**.
+3. Build settings (já vêm do `netlify.toml`):
+   - Build command: `pnpm run build`
+   - O adapter Next.js do Netlify é aplicado automaticamente.
+4. Em **Site configuration → Environment variables**, crie:
+
+   | Nome | Valor |
+   |---|---|
+   | `GROQ_API_KEY` | sua chave `gsk_...` |
+
+   Escopo: **Production**, **Preview** e **Branch deploys**.
+5. Deploy. A URL `https://….netlify.app` já é HTTPS (necessário para o microfone).
+6. Confira `https://SEU-SITE.netlify.app/api/health` → `{"groqConfigured":true}`.
+
+Não cole a chave no repositório, em `netlify.toml` nem em variável `NEXT_PUBLIC_*`.
+
+### Timeout das APIs no Netlify
+
+As rotas `/api/transcribe`, `/api/clinical/update` e `/api/clinical/finalize` rodam em funções serverless.
+
+- plano gratuito: cerca de **10 segundos**
+- plano Pro: até **26 segundos** (`timeout = 26` no `netlify.toml`)
+
+A análise clínica costuma caber nesse tempo. Se aparecer 504 no deploy, use o plano Pro ou rode localmente com `pnpm dev`.
 
 ## Scripts
 
