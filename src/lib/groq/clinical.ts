@@ -52,6 +52,15 @@ function extractJsonText(content: unknown): string {
   return "";
 }
 
+function extractMessageJson(message: {
+  content?: unknown;
+  reasoning?: string | null;
+} | undefined): string {
+  const fromContent = extractJsonText(message?.content);
+  if (fromContent.trim()) return fromContent;
+  return message?.reasoning?.trim() ?? "";
+}
+
 function parseJsonPayload(text: string): unknown {
   const trimmed = text.trim();
   if (!trimmed) {
@@ -75,12 +84,13 @@ async function completeJson<T>(input: {
 }): Promise<T> {
   const groq = getGroqClient();
 
-  const run = async (extraUser?: string) => {
+  const run = async (extraUser?: string, useSchema = true) => {
     const response = await groq.chat.completions.create(
       {
         model: AI_CONFIG.clinicalModel,
         temperature: 0.2,
         reasoning_effort: input.reasoning,
+        reasoning_format: "hidden",
         max_completion_tokens: input.maxTokens,
         messages: [
           { role: "system", content: input.system },
@@ -89,19 +99,21 @@ async function completeJson<T>(input: {
             content: extraUser ? `${input.user}\n\n${extraUser}` : input.user,
           },
         ],
-        response_format: {
-          type: "json_schema",
-          json_schema: {
-            name: input.schemaName,
-            strict: true,
-            schema: input.schema,
-          },
-        },
+        response_format: useSchema
+          ? {
+              type: "json_schema",
+              json_schema: {
+                name: input.schemaName,
+                strict: true,
+                schema: input.schema,
+              },
+            }
+          : { type: "json_object" },
       },
       { timeout: input.timeoutMs },
     );
 
-    const content = extractJsonText(response.choices[0]?.message?.content);
+    const content = extractMessageJson(response.choices[0]?.message);
     const parsed = parseJsonPayload(content);
     return input.zodSchema.parse(parsed);
   };
@@ -113,6 +125,7 @@ async function completeJson<T>(input: {
     try {
       return await run(
         "A resposta anterior foi inválida. Responda novamente apenas com JSON válido no schema, sem texto extra.",
+        false,
       );
     } catch (retryError) {
       logger.error(`${input.label} recovery failed`, retryError);

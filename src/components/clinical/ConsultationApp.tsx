@@ -77,6 +77,7 @@ export function ConsultationApp() {
             <ClinicalAssistantPanel
               state={session.clinicalState}
               settings={session.settings}
+              isUpdating={session.isUpdating}
             />
           </main>
           <ConsultationControls

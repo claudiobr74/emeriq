@@ -40,6 +40,7 @@ export function useClinicalSession() {
   const sequenceRef = useRef(0);
   const appliedSequenceRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
+  const inFlightRef = useRef(false);
   const elapsedOriginRef = useRef<number | null>(null);
   const elapsedOffsetRef = useRef(0);
 
@@ -111,11 +112,19 @@ export function useClinicalSession() {
       return;
     }
 
+    if (!force && inFlightRef.current) {
+      logger.clinicalUpdate("skip, already in flight");
+      return;
+    }
+
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
+    const timeout = window.setTimeout(() => controller.abort(), 65_000);
+    const startedAt = Date.now();
     const sequence = sequenceRef.current + 1;
     sequenceRef.current = sequence;
+    inFlightRef.current = true;
     setIsUpdating(true);
 
     logger.clinicalUpdate("dispatch", {
@@ -165,16 +174,25 @@ export function useClinicalSession() {
       setClinicalError(null);
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
+        if (sequenceRef.current === sequence && Date.now() - startedAt > 60_000) {
+          lastAnalyzedAtRef.current = Date.now();
+          setClinicalError(
+            "A análise clínica demorou demais. A gravação continua; nova tentativa em instantes.",
+          );
+        }
         return;
       }
       logger.error("clinical update failed", error);
+      lastAnalyzedAtRef.current = Date.now();
       setClinicalError(
         error instanceof Error
           ? `${error.message} A gravação continua.`
           : "Falha na análise clínica. A gravação continua.",
       );
     } finally {
+      window.clearTimeout(timeout);
       if (sequenceRef.current === sequence) {
+        inFlightRef.current = false;
         setIsUpdating(false);
       }
     }
@@ -195,10 +213,10 @@ export function useClinicalSession() {
 
   const displayStatus: DisplayStatus = useMemo(() => {
     if (phase === "listening" && isTranscribing) return "transcribing";
-    if (phase === "listening" && isUpdating) return "processing";
+    if (phase === "listening") return "listening";
     if (phase === "finalizing") return "processing";
     return phase;
-  }, [phase, isTranscribing, isUpdating]);
+  }, [phase, isTranscribing]);
 
   const start = useCallback(async () => {
     setSessionError(null);
@@ -330,6 +348,7 @@ export function useClinicalSession() {
     setSessionError(null);
     setClinicalError(null);
     setIsUpdating(false);
+    inFlightRef.current = false;
     lastAnalyzedRef.current = "";
     lastAnalyzedAtRef.current = 0;
     sequenceRef.current = 0;

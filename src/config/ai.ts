@@ -18,12 +18,12 @@ export const AI_CONFIG = {
   },
   timeouts: {
     transcriptionMs: 30_000,
-    clinicalUpdateMs: 45_000,
+    clinicalUpdateMs: 60_000,
     clinicalFinalizeMs: 90_000,
   },
   maxCompletionTokens: {
-    update: 3_500,
-    finalize: 5_000,
+    update: 8_000,
+    finalize: 10_000,
   },
 } as const;
 
