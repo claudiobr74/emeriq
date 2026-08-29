@@ -19,7 +19,7 @@ import {
 } from "@/lib/clinical/parse";
 import type { ClinicalState, FinalClinicalReport } from "@/lib/clinical/schemas";
 import { evaluateSafety, reevaluationHintForTrigger } from "@/lib/clinical/safety";
-import { AppError } from "@/lib/errors";
+import { AppError, groqRetryAfterMs } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import { getGroqClient } from "@/lib/groq/client";
 
@@ -67,11 +67,11 @@ function extractMessageJson(message: {
 function groqUserMessage(error: unknown): string {
   const status = (error as { status?: number }).status;
   const raw = error instanceof Error ? error.message : "";
-  if (status === 413 || raw.includes("rate_limit_exceeded") || raw.includes("Request too large")) {
-    return "O modelo clínico excedeu o limite de tokens da Groq. A gravação continua; nova tentativa em instantes.";
-  }
-  if (status === 429) {
+  if (status === 429 || raw.includes("rate_limit_exceeded")) {
     return "Limite de uso da Groq atingido. A gravação continua.";
+  }
+  if (status === 413 || raw.includes("Request too large")) {
+    return "O pedido clínico ficou grande demais para o modelo. A gravação continua; nova tentativa em instantes.";
   }
   if (status === 401 || status === 403) {
     return "Falha de autenticação com a Groq. Verifique GROQ_API_KEY.";
@@ -117,7 +117,12 @@ async function completeJson<T>(input: {
     logger.clinicalUpdate(`${input.label} failed`, {
       message: error instanceof Error ? error.message.slice(0, 300) : "unknown",
     });
-    throw new AppError(groqUserMessage(error), "clinical_model_failed", 502);
+    throw new AppError(
+      groqUserMessage(error),
+      "clinical_model_failed",
+      502,
+      groqRetryAfterMs(error),
+    );
   }
 }
 

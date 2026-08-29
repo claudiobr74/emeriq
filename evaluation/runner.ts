@@ -5,7 +5,7 @@ import { createEmptyClinicalState } from "../src/lib/clinical/clinical-state";
 import { getGroqApiKey } from "../src/lib/env";
 import { clinicalAIProvider } from "../src/lib/groq/clinical";
 import { CLINICAL_PROMPT_VERSION } from "../src/lib/clinical/prompts/version";
-import { isRetryableClinicalError } from "../src/lib/errors";
+import { AppError, isRetryableClinicalError } from "../src/lib/errors";
 import type { ClinicalState } from "../src/lib/clinical/schemas";
 import { CLINICAL_CASES } from "./cases";
 import type { CaseScore, EvaluationReport } from "./schemas";
@@ -18,7 +18,7 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function withRetry<T>(fn: () => Promise<T>, attempts = 8): Promise<T> {
+async function withRetry<T>(fn: () => Promise<T>, attempts = 5): Promise<T> {
   let last: unknown;
   for (let i = 0; i < attempts; i += 1) {
     try {
@@ -28,7 +28,10 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 8): Promise<T> {
       if (!isRetryableClinicalError(error) || i === attempts - 1) {
         throw error;
       }
-      const wait = Math.min(6_000 * 2 ** i, 90_000);
+      const wait =
+        error instanceof AppError && error.retryAfterMs
+          ? Math.min(Math.max(error.retryAfterMs, 5_000), 120_000)
+          : 65_000;
       const message = error instanceof Error ? error.message.slice(0, 120) : "erro";
       console.error(`  retry ${i + 1}/${attempts - 1} in ${Math.round(wait / 1000)}s (${message})`);
       await sleep(wait);
@@ -50,7 +53,7 @@ async function runCase(testCase: (typeof CLINICAL_CASES)[number]): Promise<CaseS
         newSegment: segment,
       }),
     );
-    await sleep(1_200);
+    await sleep(2_000);
   }
 
   const report = await withRetry(() =>
@@ -203,7 +206,7 @@ export async function runClinicalEvaluation(): Promise<EvaluationReport> {
       printCase(failed);
     }
     writeReports(buildReport(scores));
-    await sleep(2_000);
+    await sleep(4_000);
   }
 
   const report = buildReport(scores);

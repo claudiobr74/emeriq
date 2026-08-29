@@ -3,6 +3,7 @@ export class AppError extends Error {
     message: string,
     public readonly code: string,
     public readonly status = 500,
+    public readonly retryAfterMs?: number,
   ) {
     super(message);
     this.name = "AppError";
@@ -38,8 +39,25 @@ export function apiErrorMessage(status: number, fallback: string): string {
 }
 
 export function isRetryableClinicalError(error: unknown): boolean {
+  if (error instanceof AppError && error.retryAfterMs != null) return true;
   const message = error instanceof Error ? error.message : String(error);
-  return /429|rate.?limit|limite de uso|excedeu o limite|timeout|ETIMEDOUT|ECONNRESET|503|temporariamente|too many|tokens/i.test(
+  if (/Request too large|payload too|413/i.test(message)) return false;
+  return /429|rate.?limit|limite de uso|timeout|ETIMEDOUT|ECONNRESET|503|temporariamente|too many/i.test(
     message,
   );
+}
+
+export function groqRetryAfterMs(error: unknown): number | undefined {
+  const raw = error instanceof Error ? error.message : String(error);
+  const match = raw.match(/try again in ([\d.]+)\s*(ms|s|m)?/i);
+  if (!match) {
+    const status = (error as { status?: number }).status;
+    if (status === 429 || /rate_limit_exceeded/i.test(raw)) return 65_000;
+    return undefined;
+  }
+  const amount = Number(match[1]);
+  const unit = match[2] ?? "s";
+  if (unit === "ms") return Math.max(1_000, Math.ceil(amount));
+  if (unit === "m") return Math.ceil(amount * 60_000);
+  return Math.max(1_000, Math.ceil(amount * 1_000));
 }

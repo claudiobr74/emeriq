@@ -22,8 +22,8 @@ export const AI_CONFIG = {
     clinicalFinalizeMs: 60_000,
   },
   maxCompletionTokens: {
-    update: 2_000,
-    finalize: 2_500,
+    update: 1_400,
+    finalize: 1_800,
   },
 } as const;
 
