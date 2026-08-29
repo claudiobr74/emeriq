@@ -107,7 +107,8 @@ function SoapCard({
     <Card>
       <CardHeader>
         <CardTitle>
-          <span className="mr-2 font-mono text-teal-800">{letter}</span>
+          <span className="font-mono text-teal-800">{letter}</span>
+          <span className="mx-2 font-normal text-slate-400">—</span>
           {title}
         </CardTitle>
       </CardHeader>

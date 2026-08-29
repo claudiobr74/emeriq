@@ -32,8 +32,107 @@ function nullish(value: unknown): boolean {
 
 function asNullableString(value: unknown): string | null {
   if (nullish(value)) return null;
+  if (
+    typeof value !== "string" &&
+    typeof value !== "number" &&
+    typeof value !== "boolean"
+  ) {
+    return null;
+  }
   const text = String(value).trim();
-  return text.length > 0 ? text : null;
+  if (!text || text === "[object Object]") return null;
+  return text;
+}
+
+function priorityPhrase(value: unknown): string | null {
+  if (nullish(value)) return null;
+  const priority = hypothesisPriority(value);
+  if (priority === "high") return "mais provável";
+  if (priority === "low") return "menos provável";
+  return "possível";
+}
+
+function asProse(value: unknown, depth = 0): string | null {
+  if (depth > 5 || nullish(value)) return null;
+  if (
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
+    return asNullableString(value);
+  }
+  if (Array.isArray(value)) {
+    const parts = value
+      .map((item) => asProse(item, depth + 1))
+      .filter((item): item is string => Boolean(item));
+    return parts.length > 0 ? parts.join("\n") : null;
+  }
+  if (!isRecord(value)) return null;
+
+  const diagnosis = asProse(
+    value.diagnosis ??
+      value.diagnostico ??
+      value.hipotese ??
+      value.hypothesis ??
+      value.name ??
+      value.item ??
+      value.title,
+    depth + 1,
+  );
+  const detail = asProse(
+    value.rationale ??
+      value.justificativa ??
+      value.interpretacao ??
+      value.interpretation ??
+      value.texto ??
+      value.text ??
+      value.content ??
+      value.summary ??
+      value.description,
+    depth + 1,
+  );
+  const priority = priorityPhrase(value.priority);
+  if (diagnosis && detail) {
+    return priority ? `${diagnosis} (${priority}): ${detail}` : `${diagnosis}: ${detail}`;
+  }
+  if (diagnosis) {
+    return priority ? `${diagnosis} (${priority}).` : diagnosis;
+  }
+  if (detail) return detail;
+
+  const nestedHypotheses = value.hypotheses ?? value.hipoteses;
+  if (Array.isArray(nestedHypotheses)) {
+    return asProse(nestedHypotheses, depth + 1);
+  }
+
+  const leftover = Object.entries(value)
+    .filter(([key]) => !["priority", "id", "type", "index"].includes(key))
+    .map(([, nested]) => asProse(nested, depth + 1))
+    .filter((item): item is string => Boolean(item));
+  return leftover.length > 0 ? leftover.join(". ") : null;
+}
+
+function soapField(
+  soap: Record<string, unknown>,
+  obj: Record<string, unknown>,
+  keys: string[],
+): string | null {
+  for (const key of keys) {
+    const text = asProse(soap[key] ?? obj[key]);
+    if (text) return text;
+  }
+  return null;
+}
+
+function assessmentFromHypotheses(hypotheses: ClinicalHypothesis[]): string | null {
+  if (hypotheses.length === 0) return null;
+  return hypotheses
+    .map((item) => {
+      const priority = priorityPhrase(item.priority);
+      const head = priority ? `${item.diagnosis} (${priority})` : item.diagnosis;
+      return item.rationale ? `${head}: ${item.rationale}` : `${head}.`;
+    })
+    .join("\n");
 }
 
 function asNumber(value: unknown): number | null {
@@ -244,10 +343,16 @@ export function salvageFinalReport(raw: unknown): FinalClinicalReport {
   const stateLike = salvageClinicalState(obj);
   return {
     soap: {
-      subjective: asNullableString(soap.subjective) ?? "Não informado.",
-      objective: asNullableString(soap.objective) ?? "Não informado.",
-      assessment: asNullableString(soap.assessment) ?? "Não informado.",
-      plan: asNullableString(soap.plan) ?? "Não informado.",
+      subjective:
+        soapField(soap, obj, ["subjective", "subjetivo", "S"]) ??
+        "Não informado.",
+      objective:
+        soapField(soap, obj, ["objective", "objetivo", "O"]) ?? "Não informado.",
+      assessment:
+        soapField(soap, obj, ["assessment", "avaliacao", "avaliação", "A"]) ??
+        assessmentFromHypotheses(stateLike.hypotheses) ??
+        "Não informado.",
+      plan: soapField(soap, obj, ["plan", "plano", "P"]) ?? "Não informado.",
     },
     hypotheses: stateLike.hypotheses,
     dangerousDifferentials: stateLike.dangerousDifferentials,
