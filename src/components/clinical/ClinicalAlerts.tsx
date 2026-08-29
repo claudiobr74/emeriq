@@ -8,27 +8,23 @@ interface ClinicalAlertsProps {
 }
 
 export function ClinicalAlerts({ alerts }: ClinicalAlertsProps) {
-  if (alerts.length === 0) return null;
+  const visible = alerts.filter(
+    (alert) => alert.severity === "critical" || alert.severity === "warning",
+  );
+  if (visible.length === 0) return null;
 
   return (
-    <Card className="border-amber-200">
+    <Card className="border-red-200">
       <CardHeader>
-        <CardTitle className="text-amber-900">Atenção</CardTitle>
+        <CardTitle className="text-red-900">Atenção agora</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {alerts.map((alert) => {
+        {visible.map((alert) => {
           const tone =
             alert.severity === "critical"
               ? "border-red-200 bg-red-50"
-              : alert.severity === "warning"
-                ? "border-amber-200 bg-amber-50"
-                : "border-slate-200 bg-slate-50";
-          const label =
-            alert.severity === "critical"
-              ? "Crítico"
-              : alert.severity === "warning"
-                ? "Atenção"
-                : "Info";
+              : "border-amber-200 bg-amber-50";
+          const label = alert.severity === "critical" ? "Crítico" : "Tempo-dependente";
 
           return (
             <div

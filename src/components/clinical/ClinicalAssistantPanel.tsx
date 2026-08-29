@@ -3,15 +3,23 @@
 import { hasLiveClinicalContent } from "@/lib/clinical/clinical-state";
 import type { AppSettings, ClinicalState } from "@/types/clinical";
 import { ClinicalAlerts } from "@/components/clinical/ClinicalAlerts";
-import { HypothesisList } from "@/components/clinical/HypothesisList";
-import { PossibleTreatments } from "@/components/clinical/PossibleTreatments";
+import { EvaluationSections } from "@/components/clinical/HypothesisList";
 import { SuggestedQuestions } from "@/components/clinical/SuggestedQuestions";
-import { SuggestedTests } from "@/components/clinical/SuggestedTests";
 
 interface ClinicalAssistantPanelProps {
   state: ClinicalState;
   settings: AppSettings;
   isUpdating?: boolean;
+}
+
+function missingChecks(state: ClinicalState): string[] {
+  const items: string[] = [];
+  if (!state.vitalSigns.bloodPressure) items.push("Verificar pressão arterial.");
+  if (state.vitalSigns.heartRate == null) items.push("Verificar frequência cardíaca.");
+  if (state.vitalSigns.oxygenSaturation == null && /dispneia|falta de ar|peito/i.test(state.chiefComplaint ?? "")) {
+    items.push("Verificar saturação se houver dispneia.");
+  }
+  return [...items, ...state.missingInformation].slice(0, 3);
 }
 
 export function ClinicalAssistantPanel({
@@ -37,19 +45,20 @@ export function ClinicalAssistantPanel({
 
       {settings.showAlerts ? <ClinicalAlerts alerts={state.alerts} /> : null}
       {settings.showQuestions ? (
-        <SuggestedQuestions questions={state.suggestedQuestions} />
-      ) : null}
-      {settings.showHypotheses ? (
-        <HypothesisList
-          hypotheses={state.hypotheses}
-          dangerousDifferentials={state.dangerousDifferentials}
+        <SuggestedQuestions
+          questions={state.suggestedQuestions}
+          missingChecks={hasContent ? missingChecks(state) : []}
         />
       ) : null}
-      {settings.showTests ? (
-        <SuggestedTests tests={state.suggestedTests} />
-      ) : null}
-      {settings.showTreatments ? (
-        <PossibleTreatments treatments={state.possibleTreatments} />
+      {settings.showHypotheses || settings.showTests || settings.showTreatments ? (
+        <EvaluationSections
+          hypotheses={settings.showHypotheses ? state.hypotheses : []}
+          dangerousDifferentials={
+            settings.showHypotheses ? state.dangerousDifferentials : []
+          }
+          tests={settings.showTests ? state.suggestedTests : []}
+          treatments={settings.showTreatments ? state.possibleTreatments : []}
+        />
       ) : null}
     </div>
   );

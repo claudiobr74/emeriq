@@ -8,6 +8,7 @@ import {
 } from "@/config/ai";
 import { createEmptyClinicalState } from "@/lib/clinical/clinical-state";
 import { hasClinicalTrigger } from "@/lib/clinical/triggers";
+import { shouldApplySequence } from "@/lib/clinical/sequence";
 import { apiErrorMessage } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
@@ -103,7 +104,7 @@ export function useClinicalSession() {
 
     const thresholds = getAnalysisThresholds(settingsRef.current.analysisPace);
     const elapsed = Date.now() - lastAnalyzedAtRef.current;
-    const triggered = hasClinicalTrigger(newSegment);
+    const triggered = hasClinicalTrigger(newSegment, clinicalStateRef.current);
     const enoughText = newSegment.length >= thresholds.minNewChars;
     const enoughTime =
       elapsed >= thresholds.intervalMs || lastAnalyzedAtRef.current === 0;
@@ -162,12 +163,13 @@ export function useClinicalSession() {
         sequence: number;
       };
 
-      if (data.sequence < appliedSequenceRef.current) {
+      if (!shouldApplySequence(data.sequence, appliedSequenceRef.current)) {
         logger.clinicalUpdate("ignored stale response", data.sequence);
         return;
       }
 
       appliedSequenceRef.current = data.sequence;
+      clinicalStateRef.current = data.state;
       setClinicalState(data.state);
       lastAnalyzedRef.current = confirmed;
       lastAnalyzedAtRef.current = Date.now();
@@ -222,7 +224,9 @@ export function useClinicalSession() {
     setSessionError(null);
     setClinicalError(null);
     setReport(null);
-    setClinicalState(createEmptyClinicalState());
+    const empty = createEmptyClinicalState();
+    clinicalStateRef.current = empty;
+    setClinicalState(empty);
     lastAnalyzedRef.current = "";
     lastAnalyzedAtRef.current = 0;
     sequenceRef.current = 0;
@@ -343,7 +347,9 @@ export function useClinicalSession() {
     abortRef.current?.abort();
     await stopRecorder();
     resetTranscription();
-    setClinicalState(createEmptyClinicalState());
+    const empty = createEmptyClinicalState();
+    clinicalStateRef.current = empty;
+    setClinicalState(empty);
     setReport(null);
     setSessionError(null);
     setClinicalError(null);

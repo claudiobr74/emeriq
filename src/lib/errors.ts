@@ -36,3 +36,10 @@ export function apiErrorMessage(status: number, fallback: string): string {
   }
   return fallback;
 }
+
+export function isRetryableClinicalError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /429|rate.?limit|limite de uso|excedeu o limite|timeout|ETIMEDOUT|ECONNRESET|503|temporariamente|too many|tokens/i.test(
+    message,
+  );
+}

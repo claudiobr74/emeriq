@@ -36,6 +36,7 @@ export function createEmptyClinicalState(): ClinicalState {
     reportedFacts: [],
     observedFindings: [],
     inferences: [],
+    testResults: [],
     hypotheses: [],
     dangerousDifferentials: [],
     missingInformation: [],
@@ -43,6 +44,7 @@ export function createEmptyClinicalState(): ClinicalState {
     suggestedTests: [],
     possibleTreatments: [],
     alerts: [],
+    systemSafetyTriggers: [],
   };
 }
 
@@ -55,4 +57,31 @@ export function hasLiveClinicalContent(state: ClinicalState): boolean {
     state.suggestedTests.length > 0 ||
     state.possibleTreatments.length > 0
   );
+}
+
+export function compactClinicalState(state: ClinicalState): Record<string, unknown> {
+  return {
+    patient: state.patient,
+    chiefComplaint: state.chiefComplaint,
+    historyPresentIllness: state.historyPresentIllness,
+    pastMedicalHistory: state.pastMedicalHistory,
+    medications: state.medications,
+    allergies: state.allergies,
+    riskFactors: state.riskFactors,
+    vitalSigns: state.vitalSigns,
+    physicalExam: state.physicalExam,
+    positiveFindings: state.positiveFindings,
+    negativeFindings: state.negativeFindings,
+    reportedFacts: state.reportedFacts,
+    observedFindings: state.observedFindings,
+    inferences: state.inferences,
+    testResults: state.testResults,
+    hypotheses: state.hypotheses,
+    dangerousDifferentials: state.dangerousDifferentials,
+    missingInformation: state.missingInformation,
+    suggestedQuestions: state.suggestedQuestions,
+    suggestedTests: state.suggestedTests,
+    possibleTreatments: state.possibleTreatments,
+    alerts: state.alerts,
+  };
 }
