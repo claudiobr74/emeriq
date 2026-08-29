@@ -30,7 +30,7 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 5): Promise<T> {
       }
       const wait =
         error instanceof AppError && error.retryAfterMs
-          ? Math.min(Math.max(error.retryAfterMs, 5_000), 120_000)
+          ? Math.min(Math.max(error.retryAfterMs, 5_000), 240_000)
           : 65_000;
       const message = error instanceof Error ? error.message.slice(0, 120) : "erro";
       console.error(`  retry ${i + 1}/${attempts - 1} in ${Math.round(wait / 1000)}s (${message})`);
@@ -129,23 +129,45 @@ function buildReport(scores: CaseScore[]): EvaluationReport {
   };
 }
 
+function orderedScores(scores: CaseScore[]): CaseScore[] {
+  const byId = new Map(scores.map((item) => [item.id, item]));
+  const ordered = CLINICAL_CASES.map((item) => byId.get(item.id)).filter(
+    (item): item is CaseScore => Boolean(item),
+  );
+  for (const score of scores) {
+    if (!ordered.some((item) => item.id === score.id)) ordered.push(score);
+  }
+  return ordered;
+}
+
 export function writeReports(report: EvaluationReport) {
   mkdirSync(REPORT_DIR, { recursive: true });
-  writeFileSync(LATEST_JSON, JSON.stringify(report, null, 2));
+  const previous = loadPreviousReport();
+  let next = report;
+  if (previous) {
+    const byId = new Map(previous.cases.map((item) => [item.id, item]));
+    for (const score of report.cases) byId.set(score.id, score);
+    next = buildReport(orderedScores([...byId.values()]));
+    next.generatedAt = report.generatedAt;
+  } else {
+    next = { ...report, cases: orderedScores(report.cases) };
+    next.totals = buildReport(next.cases).totals;
+  }
+  writeFileSync(LATEST_JSON, JSON.stringify(next, null, 2));
   const md = [
-    `# Clinical evaluation ${report.promptVersion}`,
+    `# Clinical evaluation ${next.promptVersion}`,
     "",
-    `- Generated: ${report.generatedAt}`,
-    `- Provider: ${report.provider}`,
-    `- Model: ${report.model}`,
-    `- Prompt: ${report.promptVersion}`,
-    `- Reasoning: ${report.reasoningLevel}`,
+    `- Generated: ${next.generatedAt}`,
+    `- Provider: ${next.provider}`,
+    `- Model: ${next.model}`,
+    `- Prompt: ${next.promptVersion}`,
+    `- Reasoning: ${next.reasoningLevel}`,
     "",
-    `PASS ${report.totals.pass} / FAIL ${report.totals.fail} / mean ${report.totals.meanScore}`,
+    `PASS ${next.totals.pass} / FAIL ${next.totals.fail} / mean ${next.totals.meanScore}`,
     "",
     `| Case | Score | Status | Emergency | SOAP | Hallucinations |`,
     `|---|---:|---|---|---|---:|`,
-    ...report.cases.map(
+    ...next.cases.map(
       (item) =>
         `| ${item.id} | ${item.score} | ${item.status} | ${item.emergencyRecall} | ${item.soapFidelity} | ${item.hallucinations} |`,
     ),

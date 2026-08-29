@@ -48,16 +48,26 @@ export function isRetryableClinicalError(error: unknown): boolean {
 }
 
 export function groqRetryAfterMs(error: unknown): number | undefined {
-  const raw = error instanceof Error ? error.message : String(error);
-  const match = raw.match(/try again in ([\d.]+)\s*(ms|s|m)?/i);
-  if (!match) {
-    const status = (error as { status?: number }).status;
-    if (status === 429 || /rate_limit_exceeded/i.test(raw)) return 65_000;
-    return undefined;
+  const headers = (error as { headers?: Headers | Record<string, string> }).headers;
+  const headerValue =
+    headers instanceof Headers
+      ? headers.get("retry-after")
+      : headers && typeof headers === "object"
+        ? (headers["retry-after"] ?? headers["Retry-After"])
+        : undefined;
+  if (typeof headerValue === "string" && /^\d+(\.\d+)?$/.test(headerValue.trim())) {
+    return Math.max(1_000, Math.ceil(Number(headerValue) * 1000));
   }
-  const amount = Number(match[1]);
-  const unit = match[2] ?? "s";
-  if (unit === "ms") return Math.max(1_000, Math.ceil(amount));
-  if (unit === "m") return Math.ceil(amount * 60_000);
-  return Math.max(1_000, Math.ceil(amount * 1_000));
+
+  const raw = error instanceof Error ? error.message : String(error);
+  const combo = raw.match(/try again in (?:(\d+)m)?\s*([\d.]+)s/i);
+  if (combo) {
+    const minutes = Number(combo[1] ?? 0);
+    const seconds = Number(combo[2] ?? 0);
+    return Math.max(1_000, Math.ceil((minutes * 60 + seconds) * 1000));
+  }
+
+  const status = (error as { status?: number }).status;
+  if (status === 429 || /rate_limit_exceeded/i.test(raw)) return 65_000;
+  return undefined;
 }

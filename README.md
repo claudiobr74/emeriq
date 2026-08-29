@@ -87,6 +87,8 @@ pnpm eval:clinical
 
 Requer `GROQ_API_KEY`. Processa os casos de `evaluation/cases` de forma incremental, pontua recall de emergências, alucinação e fidelidade do SOAP.
 
+A Groq no plano on-demand limita tokens por dia (TPD) por modelo. Uma corrida completa de ~35 casos pode exceder ~200k TPD. Use `EVAL_RESUME=1` no dia seguinte ou `EVAL_FILTER` / `EVAL_LIMIT` para subconjuntos.
+
 Relatórios:
 
 - `evaluation/reports/latest.json`
