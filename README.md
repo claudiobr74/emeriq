@@ -64,14 +64,43 @@ A transcrição em trechos curtos e a análise clínica costumam caber em 10s. S
 ```bash
 pnpm lint
 pnpm typecheck
+pnpm test
+pnpm eval:clinical
 pnpm build
 ```
+
+## Clinical Safety Layer
+
+Camada determinística (sem LLM) em `src/lib/clinical/safety/`. Lê transcrição e sinais vitais **explicitamente informados** e gera `systemSafetyTriggers` internos (`high_risk_chest_pain`, `hypoxemia`, etc.). Triggers não são diagnósticos: forçam reavaliação clínica e entram no prompt. Alertas na tela vêm da IA (`alerts`). Limiares numéricos ficam em `safety/thresholds.ts`.
+
+## Clinical Knowledge
+
+Protocolos curtos em `src/clinical-knowledge/*.md`. O router escolhe no máximo 1–3 documentos por chamada (palavras-chave + triggers). São material de apoio, não verdade absoluta. Se o arquivo não carregar, o atendimento continua.
+
+## Evaluation Harness
+
+Ferramenta de desenvolvimento, sem botão na interface.
+
+```bash
+pnpm eval:clinical
+```
+
+Requer `GROQ_API_KEY`. Processa os casos de `evaluation/cases` de forma incremental, pontua recall de emergências, alucinação e fidelidade do SOAP.
+
+A Groq no plano on-demand limita tokens por dia (TPD) por modelo. Uma corrida completa de ~35 casos pode exceder ~200k TPD. Use `EVAL_RESUME=1` no dia seguinte ou `EVAL_FILTER` / `EVAL_LIMIT` para subconjuntos.
+
+Relatórios:
+
+- `evaluation/reports/latest.json`
+- `evaluation/reports/latest.md`
+
+Opcional: `EVAL_LIMIT=5`, `EVAL_FILTER=chest-pain,thunderclap` ou `EVAL_RESUME=1` (reaproveita casos PASS do `latest.json`).
 
 ## Limitações atuais
 
 - Sem persistência: recarregar a página encerra o atendimento.
 - Sem autenticação e sem múltiplos usuários.
-- Sem banco de dados, RAG ou protocolos institucionais.
+- Sem banco de dados, RAG vetorial ou embeddings.
 - Sem integração com prontuário, agenda ou prescrição eletrônica.
 - Áudio e transcrição não são armazenados.
 - Uso inicial para avaliação controlada por profissionais.

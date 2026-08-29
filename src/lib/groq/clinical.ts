@@ -1,3 +1,8 @@
+import { compactClinicalState } from "@/lib/clinical/clinical-state";
+import {
+  formatProtocolContext,
+  selectRelevantProtocols,
+} from "@/clinical-knowledge/router";
 import { AI_CONFIG } from "@/config/ai";
 import {
   FINALIZE_SYSTEM_PROMPT,
@@ -5,15 +10,18 @@ import {
   buildFinalizeUserPrompt,
   buildIncrementalUserPrompt,
 } from "@/lib/clinical/prompts";
-import { AppError } from "@/lib/errors";
-import { logger } from "@/lib/logger";
-import { getGroqClient } from "@/lib/groq/client";
-import type { ClinicalState, FinalClinicalReport } from "@/lib/clinical/schemas";
+import { validateAndSanitizeSoap } from "@/lib/clinical/provenance";
+import { stabilizeClinicalState } from "@/lib/clinical/provenance/stabilize";
 import {
   extractJsonObject,
   salvageClinicalState,
   salvageFinalReport,
 } from "@/lib/clinical/parse";
+import type { ClinicalState, FinalClinicalReport } from "@/lib/clinical/schemas";
+import { evaluateSafety, reevaluationHintForTrigger } from "@/lib/clinical/safety";
+import { AppError, groqRetryAfterMs } from "@/lib/errors";
+import { logger } from "@/lib/logger";
+import { getGroqClient } from "@/lib/groq/client";
 
 export interface ClinicalUpdateInput {
   currentState: ClinicalState;
@@ -56,18 +64,14 @@ function extractMessageJson(message: {
   return message?.reasoning?.trim() ?? "";
 }
 
-function parseJsonPayload(text: string): unknown {
-  return extractJsonObject(text);
-}
-
 function groqUserMessage(error: unknown): string {
   const status = (error as { status?: number }).status;
   const raw = error instanceof Error ? error.message : "";
-  if (status === 413 || raw.includes("rate_limit_exceeded") || raw.includes("Request too large")) {
-    return "O modelo clínico excedeu o limite de tokens da Groq. A gravação continua; nova tentativa em instantes.";
-  }
-  if (status === 429) {
+  if (status === 429 || raw.includes("rate_limit_exceeded")) {
     return "Limite de uso da Groq atingido. A gravação continua.";
+  }
+  if (status === 413 || raw.includes("Request too large")) {
+    return "O pedido clínico ficou grande demais para o modelo. A gravação continua; nova tentativa em instantes.";
   }
   if (status === 401 || status === 403) {
     return "Falha de autenticação com a Groq. Verifique GROQ_API_KEY.";
@@ -104,8 +108,7 @@ async function completeJson<T>(input: {
     );
 
     const content = extractMessageJson(response.choices[0]?.message);
-    const parsed = parseJsonPayload(content);
-    return input.salvage(parsed);
+    return input.salvage(extractJsonObject(content));
   };
 
   try {
@@ -114,23 +117,53 @@ async function completeJson<T>(input: {
     logger.clinicalUpdate(`${input.label} failed`, {
       message: error instanceof Error ? error.message.slice(0, 300) : "unknown",
     });
-    throw new AppError(groqUserMessage(error), "clinical_model_failed", 502);
+    throw new AppError(
+      groqUserMessage(error),
+      "clinical_model_failed",
+      502,
+      groqRetryAfterMs(error),
+    );
   }
 }
 
 export class GroqClinicalProvider implements ClinicalAIProvider {
   async update(input: ClinicalUpdateInput): Promise<ClinicalState> {
+    const triggers = evaluateSafety({
+      transcript: input.confirmedTranscript,
+      newSegment: input.newSegment,
+      chiefComplaint: input.currentState.chiefComplaint,
+      vitalSigns: input.currentState.vitalSigns,
+      medications: input.currentState.medications,
+    });
+    const protocols = selectRelevantProtocols(
+      input.currentState,
+      input.confirmedTranscript,
+      triggers,
+      2,
+    );
+
     logger.clinicalUpdate("request", {
       newChars: input.newSegment.length,
       transcriptChars: input.confirmedTranscript.length,
+      protocols: protocols.map((item) => item.id),
+      triggers: triggers.map((item) => item.trigger),
     });
 
-    return completeJson({
+    const salvaged = await completeJson({
       system: INCREMENTAL_SYSTEM_PROMPT,
       user: buildIncrementalUserPrompt({
-        currentStateJson: JSON.stringify(input.currentState),
+        currentStateJson: JSON.stringify(compactClinicalState(input.currentState)),
         confirmedTranscript: input.confirmedTranscript,
         newSegment: input.newSegment,
+        protocolContext: formatProtocolContext(protocols),
+        safetyTriggers: triggers
+          .map((item) => {
+            const hint = reevaluationHintForTrigger(item.trigger);
+            return hint
+              ? `${item.trigger} (${item.priority}): ${hint}`
+              : `${item.trigger} (${item.priority})`;
+          })
+          .join("\n"),
       }),
       salvage: salvageClinicalState,
       reasoning: AI_CONFIG.reasoning.update,
@@ -138,18 +171,39 @@ export class GroqClinicalProvider implements ClinicalAIProvider {
       timeoutMs: AI_CONFIG.timeouts.clinicalUpdateMs,
       label: "ClinicalUpdate",
     });
+
+    const stable = stabilizeClinicalState(input.currentState, salvaged);
+    return {
+      ...stable,
+      systemSafetyTriggers: triggers,
+    };
   }
 
   async finalize(input: ClinicalFinalizeInput): Promise<FinalClinicalReport> {
+    const triggers = evaluateSafety({
+      transcript: input.transcript,
+      chiefComplaint: input.state.chiefComplaint,
+      vitalSigns: input.state.vitalSigns,
+      medications: input.state.medications,
+    });
+    const protocols = selectRelevantProtocols(
+      input.state,
+      input.transcript,
+      triggers,
+      2,
+    );
+
     logger.clinicalFinalize("request", {
       transcriptChars: input.transcript.length,
+      protocols: protocols.map((item) => item.id),
     });
 
-    return completeJson({
+    const report = await completeJson({
       system: FINALIZE_SYSTEM_PROMPT,
       user: buildFinalizeUserPrompt({
-        currentStateJson: JSON.stringify(input.state),
+        currentStateJson: JSON.stringify(compactClinicalState(input.state)),
         transcript: input.transcript,
+        protocolContext: formatProtocolContext(protocols),
       }),
       salvage: salvageFinalReport,
       reasoning: AI_CONFIG.reasoning.finalize,
@@ -157,6 +211,11 @@ export class GroqClinicalProvider implements ClinicalAIProvider {
       timeoutMs: AI_CONFIG.timeouts.clinicalFinalizeMs,
       label: "ClinicalFinalize",
     });
+
+    return validateAndSanitizeSoap(report, {
+      transcript: input.transcript,
+      state: input.state,
+    }).report;
   }
 }
 

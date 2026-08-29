@@ -65,9 +65,9 @@ export function formatFullReport(report: FinalClinicalReport): string {
 }
 
 export function priorityLabel(priority: "high" | "medium" | "low"): string {
-  if (priority === "high") return "alta prioridade";
-  if (priority === "medium") return "intermediária";
-  return "baixa / menos provável";
+  if (priority === "high") return "prioritária";
+  if (priority === "medium") return "possível";
+  return "menos provável";
 }
 
 export async function copyText(value: string): Promise<boolean> {

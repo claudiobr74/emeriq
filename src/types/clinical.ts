@@ -3,8 +3,11 @@ export type {
   ClinicalHypothesis,
   ClinicalState,
   ClinicalSuggestion,
+  ClinicalTestResult,
   FinalClinicalReport,
+  QuestionPriority,
   SoapNote,
+  SuggestedQuestion,
 } from "@/lib/clinical/schemas";
 
 export type SessionPhase =
