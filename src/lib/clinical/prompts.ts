@@ -63,7 +63,9 @@ Use linguagem de suporte à decisão: considerar, avaliar, verificar.
 Não apresente diagnóstico definitivo.
 Não use probabilidades numéricas inventadas.
 
-Responda exclusivamente com JSON. Inclua soap (subjective, objective, assessment, plan), hypotheses, dangerousDifferentials, suggestedTests, possibleTreatments, unresolvedQuestions e alerts.`;
+Responda exclusivamente com JSON. Inclua soap (subjective, objective, assessment, plan), hypotheses, dangerousDifferentials, suggestedTests, possibleTreatments, unresolvedQuestions e alerts.
+
+soap.subjective, soap.objective, soap.assessment e soap.plan DEVEM ser strings em prosa, em português, nunca arrays e nunca objetos. A Avaliação resume hipóteses e incerteza em texto corrido (ex.: "Quadro compatível com... hipóteses em aberto: ... Não há diagnóstico confirmado.").`;
 
 export function buildIncrementalUserPrompt(input: {
   currentStateJson: string;
