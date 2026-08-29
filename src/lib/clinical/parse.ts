@@ -69,11 +69,18 @@ function asProse(value: unknown, depth = 0): string | null {
   }
   if (!isRecord(value)) return null;
 
-  const diagnosis = asProse(
+  const label = asProse(
     value.diagnosis ??
       value.diagnostico ??
       value.hipotese ??
       value.hypothesis ??
+      value.finding ??
+      value.achado ??
+      value.exame ??
+      value.exam ??
+      value.sinal ??
+      value.sign ??
+      value.parameter ??
       value.name ??
       value.item ??
       value.title,
@@ -84,6 +91,14 @@ function asProse(value: unknown, depth = 0): string | null {
       value.justificativa ??
       value.interpretacao ??
       value.interpretation ??
+      value.observacao ??
+      value.observation ??
+      value.resultado ??
+      value.result ??
+      value.valor ??
+      value.value ??
+      value.measure ??
+      value.measurement ??
       value.texto ??
       value.text ??
       value.content ??
@@ -92,24 +107,66 @@ function asProse(value: unknown, depth = 0): string | null {
     depth + 1,
   );
   const priority = priorityPhrase(value.priority);
-  if (diagnosis && detail) {
-    return priority ? `${diagnosis} (${priority}): ${detail}` : `${diagnosis}: ${detail}`;
+  if (label && detail) {
+    return priority ? `${label} (${priority}): ${detail}` : `${label}: ${detail}`;
   }
-  if (diagnosis) {
-    return priority ? `${diagnosis} (${priority}).` : diagnosis;
+  if (label) {
+    return priority ? `${label} (${priority}).` : label;
   }
   if (detail) return detail;
 
-  const nestedHypotheses = value.hypotheses ?? value.hipoteses;
-  if (Array.isArray(nestedHypotheses)) {
-    return asProse(nestedHypotheses, depth + 1);
+  const nestedList =
+    value.hypotheses ??
+    value.hipoteses ??
+    value.findings ??
+    value.achados ??
+    value.vitals ??
+    value.vitalSigns ??
+    value.sinaisVitais ??
+    value.physicalExam ??
+    value.exameFisico;
+  if (Array.isArray(nestedList) || isRecord(nestedList)) {
+    const nested = asProse(nestedList, depth + 1);
+    if (nested) return nested;
   }
 
-  const leftover = Object.entries(value)
-    .filter(([key]) => !["priority", "id", "type", "index"].includes(key))
-    .map(([, nested]) => asProse(nested, depth + 1))
-    .filter((item): item is string => Boolean(item));
-  return leftover.length > 0 ? leftover.join(". ") : null;
+  return labeledRecord(value, depth);
+}
+
+const FIELD_LABELS: Record<string, string> = {
+  bloodPressure: "PA",
+  pa: "PA",
+  heartRate: "FC",
+  fc: "FC",
+  respiratoryRate: "FR",
+  fr: "FR",
+  oxygenSaturation: "SpO2",
+  spo2: "SpO2",
+  saturacao: "SpO2",
+  temperature: "Temp",
+  temperatura: "Temp",
+  glucose: "Glicemia",
+  glicemia: "Glicemia",
+  finding: "Achado",
+  achado: "Achado",
+  exam: "Exame",
+  exame: "Exame",
+};
+
+function labeledRecord(
+  value: Record<string, unknown>,
+  depth: number,
+): string | null {
+  const skip = new Set(["priority", "id", "type", "index"]);
+  const parts: string[] = [];
+  for (const [key, nested] of Object.entries(value)) {
+    if (skip.has(key)) continue;
+    const text = asProse(nested, depth + 1);
+    if (!text) continue;
+    const fieldLabel = FIELD_LABELS[key];
+    parts.push(fieldLabel ? `${fieldLabel} ${text}` : text);
+  }
+  return parts.length > 0 ? parts.join("; ") : null;
 }
 
 function soapField(
@@ -135,6 +192,63 @@ function assessmentFromHypotheses(hypotheses: ClinicalHypothesis[]): string | nu
     .join("\n");
 }
 
+function subjectiveFromState(state: ClinicalState): string | null {
+  const hpi = state.historyPresentIllness;
+  const parts = [
+    state.chiefComplaint ? `Queixa: ${state.chiefComplaint}.` : null,
+    hpi.onset ? `Início: ${hpi.onset}.` : null,
+    hpi.duration ? `Duração: ${hpi.duration}.` : null,
+    hpi.location ? `Local: ${hpi.location}.` : null,
+    hpi.character ? `Caráter: ${hpi.character}.` : null,
+    hpi.radiation ? `Irradiação: ${hpi.radiation}.` : null,
+    hpi.intensity ? `Intensidade: ${hpi.intensity}.` : null,
+    hpi.associatedSymptoms.length > 0
+      ? `Sintomas associados: ${hpi.associatedSymptoms.join("; ")}.`
+      : null,
+    state.reportedFacts.length > 0 ? state.reportedFacts.join(" ") : null,
+  ].filter((item): item is string => Boolean(item));
+  return parts.length > 0 ? parts.join(" ") : null;
+}
+
+function objectiveFromState(state: ClinicalState): string | null {
+  const v = state.vitalSigns;
+  const vitals = [
+    v.bloodPressure ? `PA ${v.bloodPressure}` : null,
+    v.heartRate != null ? `FC ${v.heartRate} bpm` : null,
+    v.respiratoryRate != null ? `FR ${v.respiratoryRate} irpm` : null,
+    v.oxygenSaturation != null ? `SpO2 ${v.oxygenSaturation}%` : null,
+    v.temperature != null ? `Temp ${v.temperature} °C` : null,
+    v.glucose != null ? `Glicemia ${v.glucose} mg/dL` : null,
+  ].filter((item): item is string => Boolean(item));
+  const parts = [
+    vitals.length > 0 ? `Sinais vitais: ${vitals.join("; ")}.` : null,
+    state.physicalExam.length > 0
+      ? `Exame físico: ${state.physicalExam.join("; ")}.`
+      : null,
+    state.observedFindings.length > 0
+      ? `Achados observados: ${state.observedFindings.join("; ")}.`
+      : null,
+    state.positiveFindings.length > 0
+      ? `Achados positivos: ${state.positiveFindings.join("; ")}.`
+      : null,
+    state.negativeFindings.length > 0
+      ? `Achados negativos: ${state.negativeFindings.join("; ")}.`
+      : null,
+  ].filter((item): item is string => Boolean(item));
+  return parts.length > 0 ? parts.join("\n") : null;
+}
+
+function planFromState(state: ClinicalState): string | null {
+  const tests = state.suggestedTests.map((item) =>
+    item.rationale ? `considerar ${item.item} (${item.rationale})` : `considerar ${item.item}`,
+  );
+  const treatments = state.possibleTreatments.map((item) =>
+    item.rationale ? `avaliar ${item.item} (${item.rationale})` : `avaliar ${item.item}`,
+  );
+  const parts = [...tests, ...treatments];
+  return parts.length > 0 ? parts.join(". ") + "." : null;
+}
+
 function asNumber(value: unknown): number | null {
   if (nullish(value)) return null;
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -148,7 +262,7 @@ function asStringArray(value: unknown, max = 12): string[] {
     return single ? [single] : [];
   }
   return value
-    .map((item) => asNullableString(item))
+    .map((item) => asProse(item) ?? asNullableString(item))
     .filter((item): item is string => Boolean(item))
     .slice(0, max);
 }
@@ -345,14 +459,29 @@ export function salvageFinalReport(raw: unknown): FinalClinicalReport {
     soap: {
       subjective:
         soapField(soap, obj, ["subjective", "subjetivo", "S"]) ??
+        subjectiveFromState(stateLike) ??
         "Não informado.",
       objective:
-        soapField(soap, obj, ["objective", "objetivo", "O"]) ?? "Não informado.",
+        soapField(soap, obj, [
+          "objective",
+          "objetivo",
+          "O",
+          "vitalSigns",
+          "sinaisVitais",
+          "physicalExam",
+          "exameFisico",
+          "observedFindings",
+        ]) ??
+        objectiveFromState(stateLike) ??
+        "Não informado.",
       assessment:
         soapField(soap, obj, ["assessment", "avaliacao", "avaliação", "A"]) ??
         assessmentFromHypotheses(stateLike.hypotheses) ??
         "Não informado.",
-      plan: soapField(soap, obj, ["plan", "plano", "P"]) ?? "Não informado.",
+      plan:
+        soapField(soap, obj, ["plan", "plano", "P"]) ??
+        planFromState(stateLike) ??
+        "Não informado.",
     },
     hypotheses: stateLike.hypotheses,
     dangerousDifferentials: stateLike.dangerousDifferentials,

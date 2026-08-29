@@ -65,7 +65,11 @@ Não use probabilidades numéricas inventadas.
 
 Responda exclusivamente com JSON. Inclua soap (subjective, objective, assessment, plan), hypotheses, dangerousDifferentials, suggestedTests, possibleTreatments, unresolvedQuestions e alerts.
 
-soap.subjective, soap.objective, soap.assessment e soap.plan DEVEM ser strings em prosa, em português, nunca arrays e nunca objetos. A Avaliação resume hipóteses e incerteza em texto corrido (ex.: "Quadro compatível com... hipóteses em aberto: ... Não há diagnóstico confirmado.").`;
+soap.subjective, soap.objective, soap.assessment e soap.plan DEVEM ser strings em prosa, em português, nunca arrays e nunca objetos.
+- Subjetivo: queixa e história relatadas, em texto corrido.
+- Objetivo: sinais vitais e exame físico realmente informados, em texto corrido (ex.: "PA 140/90 mmHg. Ausculta pulmonar sem RA. Demais dados objetivos não informados.").
+- Avaliação: hipóteses e incerteza em texto corrido (ex.: "Quadro compatível com... hipóteses em aberto: ... Não há diagnóstico confirmado.").
+- Plano: condutas e exames a considerar, em texto corrido.`;
 
 export function buildIncrementalUserPrompt(input: {
   currentStateJson: string;
