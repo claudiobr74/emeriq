@@ -21,6 +21,30 @@ import type {
   SessionPhase,
 } from "@/types/clinical";
 import { DEFAULT_SETTINGS } from "@/types/clinical";
+import type { VitalField } from "@/lib/clinical/vitals";
+
+type VitalSigns = ClinicalState["vitalSigns"];
+
+/**
+ * Aplica as edições manuais do médico (sinais vitais e achados observados) sobre
+ * o estado clínico calculado pelo servidor. As edições manuais têm precedência e
+ * são reenviadas ao modelo — sem mocks, tudo representa entrada real do médico.
+ */
+function applyManualOverlays(
+  base: ClinicalState,
+  manualVitals: Partial<VitalSigns>,
+  findings: string[],
+): ClinicalState {
+  const observed = [...base.observedFindings];
+  for (const finding of findings) {
+    if (!observed.includes(finding)) observed.push(finding);
+  }
+  return {
+    ...base,
+    vitalSigns: { ...base.vitalSigns, ...manualVitals },
+    observedFindings: observed,
+  };
+}
 
 export function useClinicalSession() {
   const [phase, setPhase] = useState<SessionPhase>("idle");
@@ -40,6 +64,8 @@ export function useClinicalSession() {
   const lastAnalyzedAtRef = useRef(0);
   const sequenceRef = useRef(0);
   const appliedSequenceRef = useRef(0);
+  const manualVitalsRef = useRef<Partial<VitalSigns>>({});
+  const physicianFindingsRef = useRef<string[]>([]);
   const abortRef = useRef<AbortController | null>(null);
   const inFlightRef = useRef(false);
   const elapsedOriginRef = useRef<number | null>(null);
@@ -169,8 +195,13 @@ export function useClinicalSession() {
       }
 
       appliedSequenceRef.current = data.sequence;
-      clinicalStateRef.current = data.state;
-      setClinicalState(data.state);
+      const merged = applyManualOverlays(
+        data.state,
+        manualVitalsRef.current,
+        physicianFindingsRef.current,
+      );
+      clinicalStateRef.current = merged;
+      setClinicalState(merged);
       lastAnalyzedRef.current = confirmed;
       lastAnalyzedAtRef.current = Date.now();
       setClinicalError(null);
@@ -231,6 +262,8 @@ export function useClinicalSession() {
     lastAnalyzedAtRef.current = 0;
     sequenceRef.current = 0;
     appliedSequenceRef.current = 0;
+    manualVitalsRef.current = {};
+    physicianFindingsRef.current = [];
     elapsedOffsetRef.current = 0;
     setElapsedMs(0);
     setPhase("starting");
@@ -359,11 +392,40 @@ export function useClinicalSession() {
     lastAnalyzedAtRef.current = 0;
     sequenceRef.current = 0;
     appliedSequenceRef.current = 0;
+    manualVitalsRef.current = {};
+    physicianFindingsRef.current = [];
     elapsedOriginRef.current = null;
     elapsedOffsetRef.current = 0;
     setElapsedMs(0);
     setPhase("idle");
   }, [resetTranscription, stopRecorder]);
+
+  const setVital = useCallback(
+    (field: VitalField, value: string | number | null) => {
+      manualVitalsRef.current = { ...manualVitalsRef.current, [field]: value };
+      const merged = applyManualOverlays(
+        clinicalStateRef.current,
+        manualVitalsRef.current,
+        physicianFindingsRef.current,
+      );
+      clinicalStateRef.current = merged;
+      setClinicalState(merged);
+    },
+    [],
+  );
+
+  const addPhysicianFinding = useCallback((finding: string) => {
+    const trimmed = finding.trim();
+    if (!trimmed) return;
+    physicianFindingsRef.current = [...physicianFindingsRef.current, trimmed];
+    const merged = applyManualOverlays(
+      clinicalStateRef.current,
+      manualVitalsRef.current,
+      physicianFindingsRef.current,
+    );
+    clinicalStateRef.current = merged;
+    setClinicalState(merged);
+  }, []);
 
   const retryStart = useCallback(async () => {
     await reset();
@@ -391,5 +453,7 @@ export function useClinicalSession() {
     retryFinalize,
     reset,
     retryStart,
+    setVital,
+    addPhysicianFinding,
   };
 }

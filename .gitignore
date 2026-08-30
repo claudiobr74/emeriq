@@ -46,3 +46,7 @@ yarn-error.log*
 evaluation/reports/*.json
 evaluation/reports/*.md
 !evaluation/reports/.gitkeep
+
+# Next.js auto-generated agent rules
+/AGENTS.md
+/CLAUDE.md

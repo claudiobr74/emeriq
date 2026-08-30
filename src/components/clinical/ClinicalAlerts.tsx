@@ -1,7 +1,8 @@
 "use client";
 
+import { AlertOctagon, Clock } from "lucide-react";
 import type { ClinicalAlert } from "@/types/clinical";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StatusBadge } from "@/components/ui/status-badge";
 
 interface ClinicalAlertsProps {
   alerts: ClinicalAlert[];
@@ -14,36 +15,52 @@ export function ClinicalAlerts({ alerts }: ClinicalAlertsProps) {
   if (visible.length === 0) return null;
 
   return (
-    <Card className="border-red-200">
-      <CardHeader>
-        <CardTitle className="text-red-900">Atenção agora</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {visible.map((alert) => {
-          const tone =
-            alert.severity === "critical"
-              ? "border-red-200 bg-red-50"
-              : "border-amber-200 bg-amber-50";
-          const label = alert.severity === "critical" ? "Crítico" : "Tempo-dependente";
-
-          return (
-            <div
-              key={`${alert.title}-${alert.message}`}
-              className={`rounded-lg border p-3 ${tone}`}
-            >
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                {label}
-              </p>
-              <p className="mt-1 text-sm font-semibold text-slate-900">
-                {alert.title}
-              </p>
-              <p className="mt-1 text-sm leading-6 text-slate-700">
-                {alert.message}
-              </p>
+    <div className="flex flex-col gap-3" data-testid="clinical-alerts">
+      {visible.map((alert) => {
+        const critical = alert.severity === "critical";
+        return (
+          <div
+            key={`${alert.title}-${alert.message}`}
+            role="alert"
+            aria-live={critical ? "assertive" : "polite"}
+            className={`animate-alert-in flex flex-col gap-3 rounded-xl border p-4 ${
+              critical
+                ? "border-critical bg-critical-bg"
+                : "border-warning bg-warning-bg"
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                {critical ? (
+                  <AlertOctagon className="h-[18px] w-[18px] text-critical" aria-hidden />
+                ) : (
+                  <Clock className="h-[18px] w-[18px] text-warning" aria-hidden />
+                )}
+                <h3
+                  className={`text-sm font-bold ${
+                    critical ? "text-critical" : "text-warning"
+                  }`}
+                >
+                  Atenção Agora
+                </h3>
+              </div>
+              {critical ? (
+                <StatusBadge variant="critico" />
+              ) : (
+                <StatusBadge
+                  variant="possivel"
+                  label="Tempo-dependente"
+                  className="bg-warning text-white"
+                />
+              )}
             </div>
-          );
-        })}
-      </CardContent>
-    </Card>
+            <div className="flex flex-col gap-1">
+              <p className="text-base font-bold text-text">{alert.title}</p>
+              <p className="text-sm leading-6 text-text-body">{alert.message}</p>
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
