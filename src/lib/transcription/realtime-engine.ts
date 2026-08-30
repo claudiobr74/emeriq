@@ -1,6 +1,6 @@
 "use client";
 
-import { AI_CONFIG } from "@/config/ai";
+import { AI_CONFIG, type TranscriptionModelId } from "@/config/ai";
 import { downsample, floatToPcm16Base64 } from "@/lib/audio/wav";
 import { logger } from "@/lib/logger";
 import type { TranscriptionStatus } from "@/lib/transcription/reducer";
@@ -32,9 +32,15 @@ export class RealtimeTranscriber {
 
   constructor(private readonly cb: RealtimeCallbacks) {}
 
-  async connect(): Promise<void> {
+  async connect(
+    model: TranscriptionModelId = AI_CONFIG.transcriptionModel,
+  ): Promise<void> {
     this.cb.onStatus("connecting");
-    const res = await fetch("/api/realtime/session", { method: "POST" });
+    const res = await fetch("/api/realtime/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model }),
+    });
     if (!res.ok) throw new Error("realtime_session_failed");
     const session = (await res.json()) as { clientSecret: string };
     if (!session.clientSecret) throw new Error("realtime_session_failed");

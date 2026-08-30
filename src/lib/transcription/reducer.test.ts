@@ -100,6 +100,27 @@ describe("transcription reducer", () => {
     expect(state.confirmed).toContain("Última fala do paciente");
   });
 
+  it("accumulates incremental deltas for the same item_id", () => {
+    const state = run([
+      { type: "audioAccepted", id: "item-1" },
+      { type: "delta", id: "item-1", text: "Paci" },
+      { type: "delta", id: "item-1", text: "ente refere " },
+      { type: "delta", id: "item-1", text: "dor torácica" },
+    ]);
+    expect(state.partial).toBe("Paciente refere dor torácica");
+    expect(state.partialItemId).toBe("item-1");
+    expect(state.confirmed).toBe("");
+  });
+
+  it("resets partial when the Realtime item_id changes", () => {
+    const state = run([
+      { type: "delta", id: "item-1", text: "primeiro" },
+      { type: "delta", id: "item-2", text: "segundo" },
+    ]);
+    expect(state.partial).toBe("segundo");
+    expect(state.partialItemId).toBe("item-2");
+  });
+
   it("reset clears everything", () => {
     const state = run([
       { type: "audioAccepted", id: "1" },

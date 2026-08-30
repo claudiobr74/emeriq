@@ -1,4 +1,4 @@
-import { AI_CONFIG } from "@/config/ai";
+import { AI_CONFIG, type TranscriptionModelId } from "@/config/ai";
 import { getOpenAiApiKey } from "@/lib/env";
 import { WHISPER_PROMPT } from "@/lib/clinical/prompts";
 import { AppError } from "@/lib/errors";
@@ -17,6 +17,7 @@ export interface EphemeralRealtimeSession {
  */
 export async function createRealtimeTranscriptionSession(
   fetchImpl: typeof fetch = fetch,
+  model: TranscriptionModelId = AI_CONFIG.transcriptionModel,
 ): Promise<EphemeralRealtimeSession> {
   const apiKey = getOpenAiApiKey();
   if (!apiKey) {
@@ -43,7 +44,7 @@ export async function createRealtimeTranscriptionSession(
             input: {
               format: { type: "audio/pcm", rate: AI_CONFIG.realtime.sampleRate },
               transcription: {
-                model: AI_CONFIG.realtime.model,
+                model,
                 language: AI_CONFIG.whisperLanguage,
                 prompt: WHISPER_PROMPT.slice(0, 800),
               },
@@ -78,7 +79,7 @@ export async function createRealtimeTranscriptionSession(
   return {
     clientSecret: data.value,
     expiresAt: data.expires_at ?? null,
-    model: AI_CONFIG.realtime.model,
+    model,
     sampleRate: AI_CONFIG.realtime.sampleRate,
   };
 }

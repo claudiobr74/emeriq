@@ -143,7 +143,7 @@ export function useTranscription({ getModel }: UseTranscriptionOptions) {
       },
     });
     try {
-      await engine.connect();
+      await engine.connect(getModelRef.current());
       engineRef.current = engine;
       modeRef.current = "realtime";
       reconnectAttemptsRef.current = 0;
@@ -197,10 +197,13 @@ export function useTranscription({ getModel }: UseTranscriptionOptions) {
     engineRef.current?.resume();
   }, []);
 
-  const flushAndSettle = useCallback(async () => {
+  const flushAndSettle = useCallback(async (): Promise<{
+    timedOut: boolean;
+    pendingCount: number;
+  }> => {
     if (modeRef.current === "realtime") engineRef.current?.commit();
     const started = Date.now();
-    const maxWaitMs = 20_000;
+    const maxWaitMs = 40_000;
     while (
       !allSegmentsSettled(stateRef.current) ||
       queueRef.current.length > 0 ||
@@ -212,6 +215,10 @@ export function useTranscription({ getModel }: UseTranscriptionOptions) {
       }
       await new Promise((resolve) => window.setTimeout(resolve, 150));
     }
+    const pendingCount = pendingSegments(stateRef.current).length;
+    const timedOut =
+      pendingCount > 0 || queueRef.current.length > 0 || processingRef.current;
+    return { timedOut, pendingCount };
   }, []);
 
   const reset = useCallback(() => {

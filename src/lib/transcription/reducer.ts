@@ -21,6 +21,8 @@ export interface TranscriptionState {
   status: TranscriptionStatus;
   confirmed: string;
   partial: string;
+  /** Item Realtime cujo texto provisório está em `partial` (deltas incrementais). */
+  partialItemId: string | null;
   segments: AudioSegment[];
   error: string | null;
 }
@@ -42,6 +44,7 @@ export function initialTranscriptionState(): TranscriptionState {
     status: "idle",
     confirmed: "",
     partial: "",
+    partialItemId: null,
     segments: [],
     error: null,
   };
@@ -71,9 +74,18 @@ export function transcriptionReducer(
         segments: upsertSegment(state.segments, action.id, "pending"),
       };
 
-    case "delta":
-      // Partial é transitório: reflete o texto provisório do item atual.
-      return { ...state, partial: action.text.trim() };
+    case "delta": {
+      // gpt-4o-transcribe envia deltas incrementais: concatenar no mesmo
+      // item_id e recomeçar quando o item muda (não substituir o partial).
+      const incoming = action.text;
+      const sameItem = state.partialItemId === action.id;
+      const partial = sameItem ? `${state.partial}${incoming}` : incoming;
+      return {
+        ...state,
+        partial,
+        partialItemId: action.id,
+      };
+    }
 
     case "completed": {
       const text = action.text.trim();
@@ -86,6 +98,7 @@ export function transcriptionReducer(
         ...state,
         confirmed,
         partial: "",
+        partialItemId: null,
         segments: upsertSegment(state.segments, action.id, "confirmed"),
         error: null,
       };
@@ -95,6 +108,7 @@ export function transcriptionReducer(
       return {
         ...state,
         partial: "",
+        partialItemId: null,
         segments: upsertSegment(state.segments, action.id, "failed"),
       };
 

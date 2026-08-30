@@ -26,6 +26,25 @@ describe("createRealtimeTranscriptionSession", () => {
     expect(session.sampleRate).toBeGreaterThan(0);
   });
 
+  it("forwards the requested transcription model (Tempo real vs Alta precisão)", async () => {
+    let capturedBody = "";
+    const fetchImpl = (async (_url: string, init?: RequestInit) => {
+      capturedBody = String(init?.body ?? "");
+      return {
+        ok: true,
+        json: async () => ({ value: "ek_ephemeral_mini" }),
+      };
+    }) as unknown as typeof fetch;
+
+    const session = await createRealtimeTranscriptionSession(
+      fetchImpl,
+      "gpt-4o-mini-transcribe",
+    );
+    expect(session.model).toBe("gpt-4o-mini-transcribe");
+    expect(capturedBody).toContain("gpt-4o-mini-transcribe");
+    expect(capturedBody).not.toContain("sk-test-key");
+  });
+
   it("throws on non-ok response", async () => {
     await expect(
       createRealtimeTranscriptionSession(fakeFetch({ ok: false })),
