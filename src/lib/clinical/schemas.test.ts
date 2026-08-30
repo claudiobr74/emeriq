@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createEmptyClinicalState } from "@/lib/clinical/clinical-state";
 import { clinicalStateSchema } from "@/lib/clinical/schemas";
 import { salvageClinicalState } from "@/lib/clinical/parse";
+import { clinicalStateJsonSchema } from "@/lib/clinical/json-schema";
 
 describe("ClinicalState schema", () => {
   it("accepts the empty factory", () => {
@@ -19,6 +20,15 @@ describe("ClinicalState schema", () => {
     });
     expect(parsed.suggestedQuestions[0]?.priority).toBe("high_value");
     expect(parsed.suggestedQuestions[1]?.priority).toBe("critical");
+  });
+
+  it("keeps glasgow alongside glucose in the JSON schema contract", () => {
+    const vitals = clinicalStateJsonSchema.properties.vitalSigns.properties;
+    expect(vitals).toHaveProperty("glasgow");
+    expect(vitals).toHaveProperty("glucose");
+    expect(clinicalStateJsonSchema.properties.vitalSigns.required).toContain(
+      "glasgow",
+    );
   });
 });
 

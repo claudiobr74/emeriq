@@ -3,11 +3,10 @@ import {
   isAllowedTranscriptionModel,
   type TranscriptionModelId,
 } from "@/config/ai";
-import { AppError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import { transcribeAudio } from "@/lib/openai/transcription";
 import { transcriptTail } from "@/lib/clinical/transcript-reconciler";
-import { BODY_LIMITS, ensureSameOrigin } from "@/lib/http";
+import { BODY_LIMITS, ensureSameOrigin, errorResponse } from "@/lib/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -56,15 +55,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ text });
   } catch (error) {
     logger.error("transcribe route", error);
-    if (error instanceof AppError) {
-      return NextResponse.json(
-        { error: error.message, code: error.code },
-        { status: error.status },
-      );
-    }
-    return NextResponse.json(
-      { error: "Falha ao transcrever o áudio.", code: "transcription_failed" },
-      { status: 502 },
-    );
+    return errorResponse(error, {
+      message: "Falha ao transcrever o áudio.",
+      code: "transcription_failed",
+    });
   }
 }

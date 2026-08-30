@@ -27,6 +27,7 @@ Nunca transforme hipótese em diagnóstico confirmado.
 Diferencie explicitamente:
 - reportedFacts: apenas o que paciente ou acompanhante relatou;
 - observedFindings, vitalSigns, physicalExam, testResults: apenas o que foi observado ou informado como dado objetivo;
+- vitalSigns.glasgow: Escala de Coma de Glasgow (número), quando mencionada; vitalSigns.glucose: glicemia em mg/dL. Não confunda os dois.
 - inferences: interpretações da IA (nunca misturar com fatos);
 - hypotheses e dangerousDifferentials: raciocínio, não diagnóstico.
 
