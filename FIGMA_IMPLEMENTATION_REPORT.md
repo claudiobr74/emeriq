@@ -1,5 +1,8 @@
 # FIGMA_IMPLEMENTATION_REPORT
 
+> Para a **arquitetura de IA vigente**, consulte `ARCHITECTURE.md` (OpenAI only).
+> Este documento cobre a rodada de design-to-code.
+
 Relatório da migração design-to-code do EmerIQ: o MVP funcional passou a
 refletir o design oficial do Figma, preservando toda a lógica clínica e o
 pipeline de transcrição/IA existente.
