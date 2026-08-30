@@ -43,8 +43,8 @@ function parseEnvValue(content: string, name: string): string | undefined {
   return undefined;
 }
 
-export function getGroqApiKey(): string | undefined {
-  const fromProcess = process.env.GROQ_API_KEY?.trim();
+function readEnvVar(name: string): string | undefined {
+  const fromProcess = process.env[name]?.trim();
   if (fromProcess) return fromProcess;
 
   const files = [
@@ -54,9 +54,9 @@ export function getGroqApiKey(): string | undefined {
 
   for (const file of files) {
     try {
-      const value = parseEnvValue(decodeEnvFile(fs.readFileSync(file)), "GROQ_API_KEY");
+      const value = parseEnvValue(decodeEnvFile(fs.readFileSync(file)), name);
       if (value) {
-        process.env.GROQ_API_KEY = value;
+        process.env[name] = value;
         return value;
       }
     } catch {
@@ -65,4 +65,8 @@ export function getGroqApiKey(): string | undefined {
   }
 
   return undefined;
+}
+
+export function getOpenAiApiKey(): string | undefined {
+  return readEnvVar("OPENAI_API_KEY");
 }

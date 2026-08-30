@@ -3,17 +3,19 @@ import {
   isAllowedTranscriptionModel,
   type TranscriptionModelId,
 } from "@/config/ai";
-import { AppError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
-import { transcribeAudio } from "@/lib/groq/transcription";
+import { transcribeAudio } from "@/lib/openai/transcription";
 import { transcriptTail } from "@/lib/clinical/transcript-reconciler";
+import { BODY_LIMITS, ensureSameOrigin, errorResponse } from "@/lib/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 10;
+// Coerente com AI_CONFIG.timeouts.transcriptionMs (ver DEPLOYMENT.md).
+export const maxDuration = 30;
 
 export async function POST(request: Request) {
   try {
+    ensureSameOrigin(request);
     const form = await request.formData();
     const audio = form.get("audio");
     const modelValue = String(form.get("model") ?? "");
@@ -23,6 +25,13 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "Arquivo de áudio ausente.", code: "missing_audio" },
         { status: 400 },
+      );
+    }
+
+    if (audio.size > BODY_LIMITS.audioBytes) {
+      return NextResponse.json(
+        { error: "Áudio grande demais.", code: "payload_too_large" },
+        { status: 413 },
       );
     }
 
@@ -46,15 +55,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ text });
   } catch (error) {
     logger.error("transcribe route", error);
-    if (error instanceof AppError) {
-      return NextResponse.json(
-        { error: error.message, code: error.code },
-        { status: error.status },
-      );
-    }
-    return NextResponse.json(
-      { error: "Falha ao transcrever o áudio.", code: "transcription_failed" },
-      { status: 502 },
-    );
+    return errorResponse(error, {
+      message: "Falha ao transcrever o áudio.",
+      code: "transcription_failed",
+    });
   }
 }

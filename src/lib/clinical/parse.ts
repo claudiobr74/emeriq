@@ -147,6 +147,7 @@ const FIELD_LABELS: Record<string, string> = {
   temperatura: "Temp",
   glucose: "Glicemia",
   glicemia: "Glicemia",
+  glasgow: "Glasgow",
   finding: "Achado",
   achado: "Achado",
   exam: "Exame",
@@ -218,6 +219,7 @@ function objectiveFromState(state: ClinicalState): string | null {
     v.respiratoryRate != null ? `FR ${v.respiratoryRate} irpm` : null,
     v.oxygenSaturation != null ? `SpO2 ${v.oxygenSaturation}%` : null,
     v.temperature != null ? `Temp ${v.temperature} °C` : null,
+    v.glasgow != null ? `Glasgow ${v.glasgow}` : null,
     v.glucose != null ? `Glicemia ${v.glucose} mg/dL` : null,
   ].filter((item): item is string => Boolean(item));
   const parts = [
@@ -254,6 +256,14 @@ function asNumber(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   const parsed = Number(String(value).replace(",", "."));
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+/** Glasgow: apenas 3–15. Fora da faixa ou ausente → null (não inferir). */
+function asGlasgow(value: unknown): number | null {
+  const numeric = asNumber(value);
+  if (numeric == null) return null;
+  const score = Math.round(numeric);
+  return score >= 3 && score <= 15 ? score : null;
 }
 
 function asStringArray(value: unknown, max = 12): string[] {
@@ -338,6 +348,44 @@ function asSuggestion(value: unknown): ClinicalSuggestion | null {
   };
 }
 
+function questionPriority(
+  value: unknown,
+): "critical" | "high_value" | "routine" {
+  const text = String(value ?? "")
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase();
+  if (text.includes("crit") || text.includes("imediat")) return "critical";
+  if (text.includes("routin") || text.includes("rotina")) return "routine";
+  return "high_value";
+}
+
+function asQuestion(
+  value: unknown,
+): { text: string; priority: "critical" | "high_value" | "routine" } | null {
+  if (typeof value === "string" && value.trim()) {
+    return { text: value.trim(), priority: "high_value" };
+  }
+  if (!isRecord(value)) return null;
+  const text = asNullableString(
+    value.text ?? value.question ?? value.pergunta ?? value.item,
+  );
+  if (!text) return null;
+  return { text, priority: questionPriority(value.priority) };
+}
+
+function asTestResult(
+  value: unknown,
+): { name: string; result: string } | null {
+  if (typeof value === "string" && value.trim()) {
+    return { name: value.trim(), result: "informado" };
+  }
+  if (!isRecord(value)) return null;
+  const name = asNullableString(value.name ?? value.exame ?? value.test ?? value.item);
+  const result = asNullableString(value.result ?? value.resultado ?? value.value);
+  if (!name || !result) return null;
+  return { name, result };
+}
 function asAlert(value: unknown): ClinicalAlert | null {
   if (!isRecord(value)) return null;
   const title = asNullableString(value.title);
@@ -365,10 +413,13 @@ export function salvageClinicalState(raw: unknown): ClinicalState {
   const complaint = asNullableString(
     obj.chiefComplaint ?? obj.queixa ?? obj.queixaPrincipal,
   );
-  const questions = asStringArray(
-    obj.suggestedQuestions ?? obj.perguntas ?? obj.questions,
-    5,
-  );
+  const questionsSource = Array.isArray(obj.suggestedQuestions)
+    ? obj.suggestedQuestions
+    : Array.isArray(obj.perguntas)
+      ? obj.perguntas
+      : Array.isArray(obj.questions)
+        ? obj.questions
+        : [];
   const hypothesesSource = Array.isArray(obj.hypotheses)
     ? obj.hypotheses
     : Array.isArray(obj.hipoteses)
@@ -411,6 +462,7 @@ export function salvageClinicalState(raw: unknown): ClinicalState {
       respiratoryRate: asNumber(vitals.respiratoryRate),
       oxygenSaturation: asNumber(vitals.oxygenSaturation),
       temperature: asNumber(vitals.temperature),
+      glasgow: asGlasgow(vitals.glasgow),
       glucose: asNumber(vitals.glucose),
     },
     physicalExam: asStringArray(obj.physicalExam),
@@ -419,18 +471,30 @@ export function salvageClinicalState(raw: unknown): ClinicalState {
     reportedFacts: asStringArray(obj.reportedFacts),
     observedFindings: asStringArray(obj.observedFindings),
     inferences: asStringArray(obj.inferences),
+    testResults: (Array.isArray(obj.testResults) ? obj.testResults : [])
+      .map(asTestResult)
+      .filter((item): item is { name: string; result: string } => Boolean(item))
+      .slice(0, 8),
     hypotheses: hypothesesSource
       .map(asHypothesis)
       .filter((item): item is ClinicalHypothesis => Boolean(item))
-      .slice(0, 6),
+      .slice(0, 5),
     dangerousDifferentials: (
       Array.isArray(obj.dangerousDifferentials) ? obj.dangerousDifferentials : []
     )
       .map(asHypothesis)
       .filter((item): item is ClinicalHypothesis => Boolean(item))
-      .slice(0, 5),
+      .slice(0, 3),
     missingInformation: asStringArray(obj.missingInformation, 8),
-    suggestedQuestions: questions,
+    suggestedQuestions: questionsSource
+      .map(asQuestion)
+      .filter(
+        (
+          item,
+        ): item is { text: string; priority: "critical" | "high_value" | "routine" } =>
+          Boolean(item),
+      )
+      .slice(0, 5),
     suggestedTests: (Array.isArray(obj.suggestedTests) ? obj.suggestedTests : [])
       .map(asSuggestion)
       .filter((item): item is ClinicalSuggestion => Boolean(item))
@@ -445,6 +509,7 @@ export function salvageClinicalState(raw: unknown): ClinicalState {
       .map(asAlert)
       .filter((item): item is ClinicalAlert => Boolean(item))
       .slice(0, 5),
+    systemSafetyTriggers: [],
   };
 }
 

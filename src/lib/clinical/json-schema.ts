@@ -96,6 +96,7 @@ export const clinicalStateJsonSchema = {
         respiratoryRate: nullableNumber,
         oxygenSaturation: nullableNumber,
         temperature: nullableNumber,
+        glasgow: nullableNumber,
         glucose: nullableNumber,
       },
       required: [
@@ -104,6 +105,7 @@ export const clinicalStateJsonSchema = {
         "respiratoryRate",
         "oxygenSaturation",
         "temperature",
+        "glasgow",
         "glucose",
       ],
     },
