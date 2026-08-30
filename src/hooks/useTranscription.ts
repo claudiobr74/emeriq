@@ -236,6 +236,10 @@ export function useTranscription({ getModel }: UseTranscriptionOptions) {
 
   const getConfirmed = useCallback(() => stateRef.current.confirmed, []);
 
+  const hydrateConfirmed = useCallback((confirmed: string) => {
+    dispatch({ type: "hydrate", confirmed });
+  }, []);
+
   useEffect(() => {
     return () => {
       engineRef.current?.close();
@@ -260,6 +264,7 @@ export function useTranscription({ getModel }: UseTranscriptionOptions) {
     resume,
     flushAndSettle,
     getConfirmed,
+    hydrateConfirmed,
     reset,
   };
 }

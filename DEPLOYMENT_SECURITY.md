@@ -7,6 +7,8 @@ o objetivo é reduzir exposição acidental, não implementar autenticação com
 
 - `OPENAI_API_KEY` é lida **somente no servidor** (`src/lib/env.ts`). Nunca é enviada
   ao browser. Não existe `NEXT_PUBLIC_OPENAI_API_KEY`.
+- `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` também são server-only. Não existe
+  `NEXT_PUBLIC_SUPABASE_*`. O browser só fala com `/api/consultations`.
 - A transcrição Realtime usa **credencial efêmera** criada em
   `POST /api/realtime/session` (a chave permanente é usada só para mintar a efêmera).
 - Nada de segredo em `localStorage`, `sessionStorage`, HTML, bundle JS ou query string.
@@ -14,7 +16,7 @@ o objetivo é reduzir exposição acidental, não implementar autenticação com
 ## Endpoints (hardening)
 
 Todas as rotas de API (`/api/transcribe`, `/api/clinical/update`,
-`/api/clinical/finalize`, `/api/realtime/session`):
+`/api/clinical/finalize`, `/api/realtime/session`, `/api/consultations`):
 
 - Aceitam apenas **POST** (método único exportado).
 - **Same-origin check** (`ensureSameOrigin`): rejeita origem cruzada com 403.

@@ -29,6 +29,14 @@ import type {
 } from "@/types/clinical";
 import { DEFAULT_SETTINGS } from "@/types/clinical";
 import type { VitalField } from "@/lib/clinical/vitals";
+import {
+  clearConsultationId,
+  createConsultationRemote,
+  loadConsultationRemote,
+  readConsultationId,
+  saveConsultationRemote,
+  writeConsultationId,
+} from "@/lib/consultations/browser";
 
 type VitalSigns = ClinicalState["vitalSigns"];
 
@@ -167,8 +175,24 @@ export function useClinicalSession() {
     resume: resumeTranscription,
     flushAndSettle,
     getConfirmed,
+    hydrateConfirmed,
     reset: resetTranscription,
   } = useTranscription({ getModel });
+
+  useEffect(() => {
+    const id = readConsultationId();
+    if (!id) return;
+    void loadConsultationRemote(id).then((row) => {
+      if (!row || row.status !== "finalized" || !row.soap) return;
+      clinicalStateRef.current = row.clinicalState;
+      setClinicalState(row.clinicalState);
+      setReport(row.soap);
+      setFinalizeWarning(row.finalizeWarning);
+      lastAnalyzedRef.current = row.transcript;
+      hydrateConfirmed(row.transcript);
+      setPhase("completed");
+    });
+  }, [hydrateConfirmed]);
 
   const {
     start: startRecorder,
@@ -286,6 +310,14 @@ export function useClinicalSession() {
       lastAnalyzedRef.current = confirmed;
       lastAnalyzedAtRef.current = Date.now();
       setClinicalError(null);
+      const consultationId = readConsultationId();
+      if (consultationId) {
+        void saveConsultationRemote(consultationId, {
+          transcript: confirmed,
+          clinicalState: merged,
+          status: "active",
+        });
+      }
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
         if (
@@ -358,6 +390,9 @@ export function useClinicalSession() {
       await startRecorder();
       elapsedOriginRef.current = Date.now();
       setPhase("listening");
+      void createConsultationRemote().then((id) => {
+        if (id) writeConsultationId(id);
+      });
     } catch (error) {
       setSessionError(
         error instanceof Error
@@ -397,11 +432,11 @@ export function useClinicalSession() {
     // Finalização transacional: aguarda o áudio pendente virar texto (confirmed
     // ou failed) antes de gerar o SOAP, para o último trecho não se perder.
     const flush = await flushAndSettle();
-    if (flush.timedOut && flush.pendingCount > 0) {
-      setFinalizeWarning(
-        "A transcrição do último trecho não confirmou a tempo. O SOAP usa o texto já confirmado.",
-      );
-    }
+    const warning =
+      flush.timedOut && flush.pendingCount > 0
+        ? "A transcrição do último trecho não confirmou a tempo. O SOAP usa o texto já confirmado."
+        : null;
+    if (warning) setFinalizeWarning(warning);
     await runClinicalUpdate(true);
 
     try {
@@ -427,6 +462,16 @@ export function useClinicalSession() {
       const data = (await response.json()) as { report: FinalClinicalReport };
       setReport(data.report);
       setPhase("completed");
+      const consultationId = readConsultationId();
+      if (consultationId) {
+        void saveConsultationRemote(consultationId, {
+          transcript: getConfirmed(),
+          clinicalState: clinicalStateRef.current,
+          soap: data.report,
+          status: "finalized",
+          finalizeWarning: warning,
+        });
+      }
     } catch (error) {
       logger.error("finalize failed", error);
       setSessionError(
@@ -462,6 +507,15 @@ export function useClinicalSession() {
       const data = (await response.json()) as { report: FinalClinicalReport };
       setReport(data.report);
       setPhase("completed");
+      const consultationId = readConsultationId();
+      if (consultationId) {
+        void saveConsultationRemote(consultationId, {
+          transcript: getConfirmed(),
+          clinicalState: clinicalStateRef.current,
+          soap: data.report,
+          status: "finalized",
+        });
+      }
     } catch (error) {
       setSessionError(
         error instanceof Error
@@ -495,6 +549,7 @@ export function useClinicalSession() {
     elapsedOffsetRef.current = 0;
     setElapsedMs(0);
     setPhase("idle");
+    clearConsultationId();
   }, [resetTranscription, stopRecorder]);
 
   const setVital = useCallback(

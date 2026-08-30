@@ -2,14 +2,17 @@
 
 ## Plataforma
 
-O repositório inclui `netlify.toml` + `@netlify/plugin-nextjs` → alvo principal de
-deploy é **Netlify**. As rotas são funções serverless (runtime Node.js).
+Alvo principal de produção: **Vercel** (honra `maxDuration` 30/45/60 s).
+O repositório ainda inclui `netlify.toml` + `@netlify/plugin-nextjs` para
+Netlify, se necessário. As rotas são funções serverless (runtime Node.js).
 
-## Variável de ambiente
+## Variáveis de ambiente
 
 | Nome | Escopo | Valor |
 | --- | --- | --- |
-| `OPENAI_API_KEY` | Production, Preview, Branch deploys | `sk-...` |
+| `OPENAI_API_KEY` | Production, Preview, Development | `sk-...` |
+| `SUPABASE_URL` | Production, Preview, Development | `https://<ref>.supabase.co` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Production, Preview, Development | service role (server-only) |
 
 Nunca expor a chave no client (sem `NEXT_PUBLIC_*`). A transcrição Realtime usa
 **credencial efêmera** mintada em `POST /api/realtime/session` (a chave permanente

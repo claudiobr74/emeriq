@@ -54,7 +54,10 @@ function readEnvVar(name: string): string | undefined {
 
   for (const file of files) {
     try {
-      const value = parseEnvValue(decodeEnvFile(fs.readFileSync(file)), name);
+      const value = parseEnvValue(
+        decodeEnvFile(fs.readFileSync(/*turbopackIgnore: true*/ file)),
+        name,
+      );
       if (value) {
         process.env[name] = value;
         return value;
@@ -69,4 +72,22 @@ function readEnvVar(name: string): string | undefined {
 
 export function getOpenAiApiKey(): string | undefined {
   return readEnvVar("OPENAI_API_KEY");
+}
+
+export function getSupabaseUrl(): string | undefined {
+  const url = readEnvVar("SUPABASE_URL");
+  return url ? url.replace(/\/$/, "") : undefined;
+}
+
+/** Chave server-side. Preferir service role; nunca `NEXT_PUBLIC_*`. */
+export function getSupabaseServerKey(): string | undefined {
+  return (
+    readEnvVar("SUPABASE_SERVICE_ROLE_KEY") ||
+    readEnvVar("SUPABASE_SECRET_KEY") ||
+    readEnvVar("SUPABASE_ANON_KEY")
+  );
+}
+
+export function isSupabaseConfigured(): boolean {
+  return Boolean(getSupabaseUrl() && getSupabaseServerKey());
 }

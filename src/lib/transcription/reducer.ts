@@ -37,6 +37,7 @@ export type TranscriptionAction =
   | { type: "completed"; id: string; text: string }
   /** Item falhou na transcrição (registrado, não ignorado). */
   | { type: "failed"; id: string }
+  | { type: "hydrate"; confirmed: string }
   | { type: "reset" };
 
 export function initialTranscriptionState(): TranscriptionState {
@@ -110,6 +111,12 @@ export function transcriptionReducer(
         partial: "",
         partialItemId: null,
         segments: upsertSegment(state.segments, action.id, "failed"),
+      };
+
+    case "hydrate":
+      return {
+        ...initialTranscriptionState(),
+        confirmed: action.confirmed,
       };
 
     case "reset":

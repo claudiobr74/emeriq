@@ -17,6 +17,13 @@ function run(
 }
 
 describe("transcription reducer", () => {
+  it("hydrate seeds confirmed transcript without partials", () => {
+    const state = run([{ type: "hydrate", confirmed: "Paciente com dor no peito." }]);
+    expect(state.confirmed).toBe("Paciente com dor no peito.");
+    expect(state.partial).toBe("");
+    expect(state.segments).toEqual([]);
+  });
+
   it("partial delta does not enter confirmed until completed", () => {
     const state = run([
       { type: "audioAccepted", id: "1" },

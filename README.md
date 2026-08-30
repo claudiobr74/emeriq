@@ -37,6 +37,30 @@ Confira a chave sem expô-la: [http://localhost:3000/api/health](http://localhos
 
 A chave fica só no `.env.local`. Nunca use `NEXT_PUBLIC_OPENAI_API_KEY` e não faça commit desse arquivo.
 
+## Deploy no Vercel (via GitHub)
+
+1. Branch de produção: `main` (ou o branch ligado ao projeto).
+2. No [Vercel](https://vercel.com): **Add New → Project → `claudiobr74/emeriq`**.
+   - Framework: Next.js
+   - Build command: `pnpm run build`
+   - Install: `pnpm install`
+3. Environment Variables:
+
+   | Nome | Valor |
+   |---|---|
+   | `OPENAI_API_KEY` | sua chave `sk-...` |
+   | `SUPABASE_URL` | URL do projeto Supabase |
+   | `SUPABASE_SERVICE_ROLE_KEY` | service role (nunca `NEXT_PUBLIC_*`) |
+
+4. Confira `https://SEU-PROJETO.vercel.app/api/health` →
+   `{"openaiConfigured":true,"supabaseConfigured":true}`.
+5. Ative **Deployment Protection** (Vercel Authentication) enquanto não houver
+   login na aplicação — evita proxy aberto da OpenAI.
+
+A URL `https://….vercel.app` já é HTTPS (necessário para o microfone).
+
+Schema do banco: `supabase/migrations/20260830120000_consultations.sql`.
+
 ## Deploy no Netlify (via GitHub)
 
 O repositório inclui `netlify.toml` (Node 22, pnpm) e o plugin `@netlify/plugin-nextjs`. Sem esse plugin o Netlify publica a pasta errada e a home vira o 404 padrão (“Page not found”).
@@ -108,9 +132,10 @@ Opcional: `EVAL_LIMIT=5`, `EVAL_FILTER=chest-pain,thunderclap` ou `EVAL_RESUME=1
 
 ## Limitações atuais
 
-- Sem persistência: recarregar a página encerra o atendimento.
+- Persistência opcional no Supabase (atendimento corrente + SOAP). Sem as
+  variáveis, recarregar a página encerra o atendimento.
 - Sem autenticação e sem múltiplos usuários.
-- Sem banco de dados, RAG vetorial ou embeddings.
+- Sem RAG vetorial ou embeddings.
 - Sem integração com prontuário, agenda ou prescrição eletrônica.
 - Áudio e transcrição não são armazenados.
 - Uso inicial para avaliação controlada por profissionais.
