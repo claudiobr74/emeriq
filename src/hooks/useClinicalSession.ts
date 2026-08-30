@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   AI_CONFIG,
   getAnalysisCadence,
@@ -79,9 +86,34 @@ function persistSettings(next: AppSettings): void {
   }
 }
 
+const settingsListeners = new Set<() => void>();
+let settingsCache: AppSettings | null = null;
+
+function getSettingsSnapshot(): AppSettings {
+  if (!settingsCache) settingsCache = loadSettings();
+  return settingsCache;
+}
+
+function subscribeSettings(onStoreChange: () => void) {
+  settingsListeners.add(onStoreChange);
+  return () => {
+    settingsListeners.delete(onStoreChange);
+  };
+}
+
+function writeSettings(next: AppSettings): void {
+  settingsCache = next;
+  persistSettings(next);
+  settingsListeners.forEach((listener) => listener());
+}
+
 export function useClinicalSession() {
   const [phase, setPhase] = useState<SessionPhase>("idle");
-  const [settings, setSettingsState] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const settings = useSyncExternalStore(
+    subscribeSettings,
+    getSettingsSnapshot,
+    () => DEFAULT_SETTINGS,
+  );
   const [clinicalState, setClinicalState] = useState<ClinicalState>(
     createEmptyClinicalState,
   );
@@ -106,17 +138,12 @@ export function useClinicalSession() {
   const elapsedOffsetRef = useRef(0);
 
   useEffect(() => {
-    setSettingsState(loadSettings());
-  }, []);
-
-  useEffect(() => {
     clinicalStateRef.current = clinicalState;
     settingsRef.current = settings;
   });
 
   const setSettings = useCallback((next: AppSettings) => {
-    setSettingsState(next);
-    persistSettings(next);
+    writeSettings(next);
   }, []);
 
   const getModel = useCallback((): TranscriptionModelId => {
