@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { clinicalUpdateRequestSchema } from "@/lib/clinical/schemas";
 import { AppError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
-import { clinicalAIProvider } from "@/lib/groq/clinical";
+import { clinicalAIProvider } from "@/lib/openai/clinical";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

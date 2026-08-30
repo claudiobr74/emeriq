@@ -72,14 +72,25 @@ respeitado; `data-testid` nos componentes clínicos (`transcript-panel`,
 `clinical-alerts`, `vitals-bar`, `hypothesis-list`, `soap-card`,
 `finish-consultation`, `start-consultation`).
 
-## OpenAI preserved → Groq preservado
+## Provedor de IA: migração para OpenAI
 
-Conflito documentado: o Figma menciona Web Speech API e o master prompt assume
-OpenAI, mas o MVP real usa **Groq** (Whisper `whisper-large-v3` + `gpt-oss-120b`
-via Groq SDK). Seguindo as regras do próprio prompt (Figma não é autoridade sobre
-providers; preservar a funcionalidade real), **a integração Groq foi mantida
-integralmente**. Nenhuma chave é exposta no client; `GROQ_API_KEY` permanece
-server-side. Não houve migração para Web Speech API nem para OpenAI.
+Conforme o prompt (seções 6 e 62) e a decisão do produto, a IA foi **migrada de
+Groq para OpenAI**:
+
+- **Transcrição** (`/api/transcribe`): `gpt-4o-transcribe` ("Alta precisão") e
+  `gpt-4o-mini-transcribe` ("Tempo real"), via `openai.audio.transcriptions`.
+- **Raciocínio clínico** (`/api/clinical/update` e `/api/clinical/finalize`):
+  `gpt-4o-mini` via `openai.chat.completions` com `response_format: json_object`.
+- SDK `openai` (substitui `groq-sdk`); chave `OPENAI_API_KEY` lida server-side em
+  `src/lib/env.ts`; cliente em `src/lib/openai/client.ts`. **A chave nunca é
+  exposta no client** (as chamadas ocorrem apenas nas rotas de API).
+- Arquitetura conceitual do prompt seguida: microfone → OpenAI transcrição →
+  transcrição incremental → `ClinicalState` → modelo clínico OpenAI →
+  Safety/Grounding → UI. Mantida a captura em chunks REST (incremental); a
+  **Realtime API** fica como evolução futura. Não usamos Web Speech API.
+- Verificação de runtime: `/api/health` → `{"openaiConfigured":false|true}`; sem
+  chave, as rotas retornam `missing_api_key` (comprovando o caminho até o cliente
+  OpenAI). Com `OPENAI_API_KEY` definido, o fluxo completo roda contra a OpenAI.
 
 ## Clinical logic preserved
 
@@ -92,10 +103,12 @@ servidor, reenviado ao modelo) — sem mocks.
 
 ## Evaluation results
 
-O harness (`pnpm eval:clinical`) e seus casos permanecem inalterados. Sua execução
-requer `GROQ_API_KEY` (não disponível neste ambiente). Como nenhuma lógica clínica,
-prompt ou schema foi alterado, os escores (recall de emergências, alucinação,
-fidelidade do SOAP, grounding) não são afetados intencionalmente por esta migração.
+O harness (`pnpm eval:clinical`) e seus casos permanecem inalterados (agora executam
+contra a OpenAI). Sua execução requer `OPENAI_API_KEY` (não disponível neste ambiente).
+Como os prompts, schemas e a lógica clínica não mudaram, a metodologia de pontuação
+(recall de emergências, alucinação, fidelidade do SOAP, grounding) é preservada; a
+troca de provedor pode alterar escores absolutos e deve ser reavaliada quando a chave
+estiver disponível.
 
 ## Test results
 
@@ -130,5 +143,5 @@ Segmented control mobile testado (troca Consulta ↔ Assistente sem perder estad
 
 - **Login/autenticação** (`5:306`/`5:1034`/`5:711`): não há auth real; não criamos
   login fake (seção 49).
-- **Web Speech API / OpenAI**: superados pela arquitetura Groq existente.
+- **Web Speech API**: superada pela arquitetura OpenAI (transcrição server-side).
 - Nenhuma feature nova fora do escopo (seção 72). Zero mocks em runtime (seção 71).

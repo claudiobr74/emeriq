@@ -116,14 +116,14 @@ representado por estados internos, reduzindo risco de regressão (seção 57 per
 
 ## Conflitos entre Figma e código
 
-- **Provedor de IA (crítico):** o Figma / guia técnico menciona **Web Speech API**.
-  Além disso, o master prompt assume **OpenAI**. **A implementação real deste MVP usa
-  Groq** (Whisper `whisper-large-v3` + `openai/gpt-oss-120b` via Groq SDK, `GROQ_API_KEY`).
-  Conforme as próprias regras do prompt (Figma **não** é autoridade sobre providers de IA;
-  "preserve a funcionalidade real; não substitua funcionalidade real por especificação
-  fictícia de protótipo"), **a integração de IA/transcrição existente (Groq) é preservada
-  integralmente**. Não migramos para Web Speech API nem para OpenAI, pois isso quebraria o
-  produto funcional e não há credencial/integração OpenAI no repositório.
+- **Provedor de IA:** o Figma / guia técnico menciona **Web Speech API** (superada). O MVP
+  usava **Groq**, mas por decisão do produto **a IA foi migrada para OpenAI** (transcrição
+  `gpt-4o-transcribe`/`gpt-4o-mini-transcribe` e raciocínio `gpt-4o-mini` via SDK `openai`,
+  `OPENAI_API_KEY`). A arquitetura conceitual do prompt (microfone → OpenAI transcrição →
+  transcrição incremental → ClinicalState → modelo clínico OpenAI → Safety/Grounding → UI)
+  foi seguida. Não usamos Web Speech API. A chave nunca é exposta no client (fica nas rotas
+  server-side). Mantida a arquitetura de chunks REST (transcrição incremental); a Realtime
+  API fica como evolução futura.
 - **SOAP "Realizado vs Sugestão":** o modelo de dados não marca condutas como *realizadas*.
   Como "sugestão da IA não pode aparecer como intervenção realizada" (seção 42), itens
   gerados pela IA são rotulados **Sugestão**; a UI suporta ambos os rótulos, mas em runtime
@@ -136,8 +136,9 @@ representado por estados internos, reduzindo risco de regressão (seção 57 per
 
 ## Decisões de preservação
 
-- Groq (transcrição + raciocínio), `ClinicalState`, Safety, Provenance, Grounding, Protocol
-  Router, SOAP, prompts e Evaluation Harness **inalterados** em comportamento.
+- `ClinicalState`, Safety, Provenance, Grounding, Protocol Router, SOAP, prompts clínicos e
+  Evaluation Harness **inalterados** em comportamento; apenas o provedor de IA passou de
+  Groq para **OpenAI** (transcrição + raciocínio), preservando o contrato JSON estruturado.
 - Sem novas dependências de estado (sem Zustand). Sem features novas (seção 72). Zero mocks
   em runtime (seção 71): todo dado visível vem do estado real; dados demonstrativos do Figma
   não entram em produção.

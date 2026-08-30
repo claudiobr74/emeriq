@@ -5,7 +5,7 @@ import {
 } from "@/config/ai";
 import { AppError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
-import { transcribeAudio } from "@/lib/groq/transcription";
+import { transcribeAudio } from "@/lib/openai/transcription";
 import { transcriptTail } from "@/lib/clinical/transcript-reconciler";
 
 export const runtime = "nodejs";

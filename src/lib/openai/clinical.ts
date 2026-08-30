@@ -19,9 +19,9 @@ import {
 } from "@/lib/clinical/parse";
 import type { ClinicalState, FinalClinicalReport } from "@/lib/clinical/schemas";
 import { evaluateSafety, reevaluationHintForTrigger } from "@/lib/clinical/safety";
-import { AppError, groqRetryAfterMs } from "@/lib/errors";
+import { AppError, openAiRetryAfterMs } from "@/lib/errors";
 import { logger } from "@/lib/logger";
-import { getGroqClient } from "@/lib/groq/client";
+import { getOpenAiClient } from "@/lib/openai/client";
 
 export interface ClinicalUpdateInput {
   currentState: ClinicalState;
@@ -55,26 +55,23 @@ function extractJsonText(content: unknown): string {
   return "";
 }
 
-function extractMessageJson(message: {
-  content?: unknown;
-  reasoning?: string | null;
-} | undefined): string {
-  const fromContent = extractJsonText(message?.content);
-  if (fromContent.trim()) return fromContent;
-  return message?.reasoning?.trim() ?? "";
+function extractMessageJson(
+  message: { content?: unknown } | undefined,
+): string {
+  return extractJsonText(message?.content).trim();
 }
 
-function groqUserMessage(error: unknown): string {
+function openAiUserMessage(error: unknown): string {
   const status = (error as { status?: number }).status;
   const raw = error instanceof Error ? error.message : "";
-  if (status === 429 || raw.includes("rate_limit_exceeded")) {
-    return "Limite de uso da Groq atingido. A gravação continua.";
+  if (status === 429 || raw.includes("rate_limit")) {
+    return "Limite de uso da OpenAI atingido. A gravação continua.";
   }
-  if (status === 413 || raw.includes("Request too large")) {
+  if (status === 413 || raw.includes("context_length") || raw.includes("too large")) {
     return "O pedido clínico ficou grande demais para o modelo. A gravação continua; nova tentativa em instantes.";
   }
   if (status === 401 || status === 403) {
-    return "Falha de autenticação com a Groq. Verifique GROQ_API_KEY.";
+    return "Falha de autenticação com a OpenAI. Verifique OPENAI_API_KEY.";
   }
   return "A análise clínica falhou. A gravação continua.";
 }
@@ -83,21 +80,19 @@ async function completeJson<T>(input: {
   system: string;
   user: string;
   salvage: (raw: unknown) => T;
-  reasoning: "low" | "medium" | "high";
+  temperature: number;
   maxTokens: number;
   timeoutMs: number;
   label: "ClinicalUpdate" | "ClinicalFinalize";
 }): Promise<T> {
-  const groq = getGroqClient();
+  const openai = getOpenAiClient();
 
   const run = async () => {
-    const response = await groq.chat.completions.create(
+    const response = await openai.chat.completions.create(
       {
         model: AI_CONFIG.clinicalModel,
-        temperature: 0.2,
-        reasoning_effort: input.reasoning,
-        reasoning_format: "hidden",
-        max_completion_tokens: input.maxTokens,
+        temperature: input.temperature,
+        max_tokens: input.maxTokens,
         messages: [
           { role: "system", content: input.system },
           { role: "user", content: input.user },
@@ -118,15 +113,15 @@ async function completeJson<T>(input: {
       message: error instanceof Error ? error.message.slice(0, 300) : "unknown",
     });
     throw new AppError(
-      groqUserMessage(error),
+      openAiUserMessage(error),
       "clinical_model_failed",
       502,
-      groqRetryAfterMs(error),
+      openAiRetryAfterMs(error),
     );
   }
 }
 
-export class GroqClinicalProvider implements ClinicalAIProvider {
+export class OpenAiClinicalProvider implements ClinicalAIProvider {
   async update(input: ClinicalUpdateInput): Promise<ClinicalState> {
     const triggers = evaluateSafety({
       transcript: input.confirmedTranscript,
@@ -166,7 +161,7 @@ export class GroqClinicalProvider implements ClinicalAIProvider {
           .join("\n"),
       }),
       salvage: salvageClinicalState,
-      reasoning: AI_CONFIG.reasoning.update,
+      temperature: AI_CONFIG.temperature.update,
       maxTokens: AI_CONFIG.maxCompletionTokens.update,
       timeoutMs: AI_CONFIG.timeouts.clinicalUpdateMs,
       label: "ClinicalUpdate",
@@ -206,7 +201,7 @@ export class GroqClinicalProvider implements ClinicalAIProvider {
         protocolContext: formatProtocolContext(protocols),
       }),
       salvage: salvageFinalReport,
-      reasoning: AI_CONFIG.reasoning.finalize,
+      temperature: AI_CONFIG.temperature.finalize,
       maxTokens: AI_CONFIG.maxCompletionTokens.finalize,
       timeoutMs: AI_CONFIG.timeouts.clinicalFinalizeMs,
       label: "ClinicalFinalize",
@@ -219,4 +214,4 @@ export class GroqClinicalProvider implements ClinicalAIProvider {
   }
 }
 
-export const clinicalAIProvider: ClinicalAIProvider = new GroqClinicalProvider();
+export const clinicalAIProvider: ClinicalAIProvider = new OpenAiClinicalProvider();

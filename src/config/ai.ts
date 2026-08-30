@@ -1,7 +1,11 @@
 export const AI_CONFIG = {
-  transcriptionModel: "whisper-large-v3",
-  transcriptionModelTurbo: "whisper-large-v3-turbo",
-  clinicalModel: "openai/gpt-oss-120b",
+  // Transcrição via OpenAI (audio.transcriptions). "Alta precisão" usa o modelo
+  // completo; "Tempo real" usa a variante mini (mais rápida). Rótulos de UX;
+  // os IDs técnicos não são expostos ao médico (seção 46).
+  transcriptionModel: "gpt-4o-transcribe",
+  transcriptionModelTurbo: "gpt-4o-mini-transcribe",
+  // Raciocínio clínico via OpenAI Chat Completions com saída JSON estruturada.
+  clinicalModel: "gpt-4o-mini",
   chunkDurationMs: 6_000,
   chunkOverlapMs: 1_500,
   sampleRate: 16_000,
@@ -12,9 +16,9 @@ export const AI_CONFIG = {
     balanced: { intervalMs: 12_000, minNewChars: 100 },
     economical: { intervalMs: 20_000, minNewChars: 180 },
   },
-  reasoning: {
-    update: "low" as const,
-    finalize: "low" as const,
+  temperature: {
+    update: 0.2,
+    finalize: 0.2,
   },
   timeouts: {
     transcriptionMs: 30_000,
