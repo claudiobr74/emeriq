@@ -35,6 +35,11 @@ async function req(
   return { ok: response.ok, status: response.status, json };
 }
 
+async function exists(path: string): Promise<boolean> {
+  const result = await req("GET", path);
+  return result.ok;
+}
+
 async function ensureOk(
   label: string,
   result: { ok: boolean; status: number; json: unknown },
@@ -51,26 +56,34 @@ async function main() {
   const databaseId = getAppwriteDatabaseId();
   const tableId = getAppwriteTableId();
 
-  await ensureOk(
-    "database",
-    await req("POST", "/tablesdb", {
-      databaseId,
-      name: "EmerIQ",
-      enabled: true,
-      specification: "serverless",
-    }),
-  );
+  if (await exists(`/tablesdb/${databaseId}`)) {
+    console.log("database: já existe");
+  } else {
+    await ensureOk(
+      "database",
+      await req("POST", "/tablesdb", {
+        databaseId,
+        name: "EmerIQ",
+        enabled: true,
+        specification: "serverless",
+      }),
+    );
+  }
 
-  await ensureOk(
-    "table",
-    await req("POST", `/tablesdb/${databaseId}/tables`, {
-      tableId,
-      name: "consultations",
-      permissions: [],
-      rowSecurity: false,
-      enabled: true,
-    }),
-  );
+  if (await exists(`/tablesdb/${databaseId}/tables/${tableId}`)) {
+    console.log("table: já existe");
+  } else {
+    await ensureOk(
+      "table",
+      await req("POST", `/tablesdb/${databaseId}/tables`, {
+        tableId,
+        name: "consultations",
+        permissions: [],
+        rowSecurity: false,
+        enabled: true,
+      }),
+    );
+  }
 
   const columns: Array<{ path: string; body: Record<string, unknown> }> = [
     {
@@ -90,9 +103,26 @@ async function main() {
     },
   ];
 
+  const existingColumns = await req(
+    "GET",
+    `/tablesdb/${databaseId}/tables/${tableId}/columns`,
+  );
+  const existingKeys = new Set(
+    Array.isArray((existingColumns.json as { columns?: { key?: string }[] })?.columns)
+      ? (existingColumns.json as { columns: { key?: string }[] }).columns
+          .map((column) => column.key)
+          .filter((key): key is string => Boolean(key))
+      : [],
+  );
+
   for (const column of columns) {
+    const key = String(column.body.key);
+    if (existingKeys.has(key)) {
+      console.log(`column ${key}: já existe`);
+      continue;
+    }
     await ensureOk(
-      `column ${column.body.key}`,
+      `column ${key}`,
       await req(
         "POST",
         `/tablesdb/${databaseId}/tables/${tableId}/columns/${column.path}`,
