@@ -11,8 +11,8 @@ Netlify, se necessário. As rotas são funções serverless (runtime Node.js).
 | Nome | Escopo | Valor |
 | --- | --- | --- |
 | `OPENAI_API_KEY` | Production, Preview, Development | `sk-...` |
-| `APPWRITE_ENDPOINT` | Production, Preview, Development | `https://cloud.appwrite.io/v1` |
-| `APPWRITE_PROJECT_ID` | Production, Preview, Development | project id |
+| `APPWRITE_ENDPOINT` | Production, Preview, Development | `https://nyc.cloud.appwrite.io/v1` |
+| `APPWRITE_PROJECT_ID` | Production, Preview, Development | `6a94b9240022214b03fe` |
 | `APPWRITE_API_KEY` | Production, Preview, Development | API key server-only (`rows.read/write`) |
 | `APPWRITE_DATABASE_ID` | Production, Preview, Development | `emeriq` (default) |
 | `APPWRITE_TABLE_ID` | Production, Preview, Development | `consultations` (default) |

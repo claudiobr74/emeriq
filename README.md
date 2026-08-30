@@ -49,8 +49,8 @@ A chave fica só no `.env.local`. Nunca use `NEXT_PUBLIC_OPENAI_API_KEY` e não 
    | Nome | Valor |
    |---|---|
    | `OPENAI_API_KEY` | sua chave `sk-...` |
-   | `APPWRITE_ENDPOINT` | `https://cloud.appwrite.io/v1` |
-   | `APPWRITE_PROJECT_ID` | id do projeto Appwrite |
+   | `APPWRITE_ENDPOINT` | `https://nyc.cloud.appwrite.io/v1` |
+   | `APPWRITE_PROJECT_ID` | `6a94b9240022214b03fe` |
    | `APPWRITE_API_KEY` | API key server-only (nunca `NEXT_PUBLIC_*`) |
 
 4. No Appwrite Console: crie o projeto e uma API key com `tables.write`,

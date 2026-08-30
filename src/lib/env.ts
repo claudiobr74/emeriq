@@ -74,13 +74,17 @@ export function getOpenAiApiKey(): string | undefined {
   return readEnvVar("OPENAI_API_KEY");
 }
 
+/** Projeto Appwrite EmerIQ (região NYC). */
+export const APPWRITE_DEFAULT_PROJECT_ID = "6a94b9240022214b03fe";
+export const APPWRITE_DEFAULT_ENDPOINT = "https://nyc.cloud.appwrite.io/v1";
+
 export function getAppwriteEndpoint(): string | undefined {
-  const url = readEnvVar("APPWRITE_ENDPOINT") ?? "https://cloud.appwrite.io/v1";
+  const url = readEnvVar("APPWRITE_ENDPOINT") ?? APPWRITE_DEFAULT_ENDPOINT;
   return url.replace(/\/$/, "");
 }
 
 export function getAppwriteProjectId(): string | undefined {
-  return readEnvVar("APPWRITE_PROJECT_ID");
+  return readEnvVar("APPWRITE_PROJECT_ID") ?? APPWRITE_DEFAULT_PROJECT_ID;
 }
 
 /** API key server-side. Nunca `NEXT_PUBLIC_*`. */
