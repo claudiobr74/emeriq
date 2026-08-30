@@ -30,7 +30,7 @@ export function AppHeader({
       <div className="flex items-center gap-3 md:gap-6">
         {showStatus ? <StatusPill status={status} /> : null}
         {showTimer ? (
-          <span className="hidden font-bold tabular-nums text-heading sm:inline text-[18px]">
+          <span className="text-[16px] font-bold tabular-nums text-heading sm:text-[18px]">
             {formatElapsed(elapsedMs)}
           </span>
         ) : null}

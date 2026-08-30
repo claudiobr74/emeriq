@@ -23,7 +23,7 @@ function list(title: string, items: string[]): string {
 
 export function formatFullReport(report: FinalClinicalReport): string {
   return [
-    "RESUMO DO ATENDIMENTO — PS Assist",
+    "RESUMO DO ATENDIMENTO — EmerIQ",
     "",
     formatSoap(report.soap),
     "",
