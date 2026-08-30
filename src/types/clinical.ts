@@ -24,6 +24,7 @@ export type DisplayStatus =
   | "starting"
   | "listening"
   | "transcribing"
+  | "reconnecting"
   | "paused"
   | "processing"
   | "finalizing"

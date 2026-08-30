@@ -87,7 +87,7 @@ export function RationalePopover({
     <DialogPrimitive.Root>
       <DialogPrimitive.Trigger asChild>{children}</DialogPrimitive.Trigger>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-[#0b1220]/50 data-[state=open]:animate-fade-in" />
+        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-overlay data-[state=open]:animate-fade-in" />
         <DialogPrimitive.Content className="fixed inset-x-0 bottom-0 z-50 rounded-t-2xl border-t border-border bg-surface p-5 pb-8 shadow-xl focus:outline-none data-[state=open]:animate-alert-in">
           <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-border" aria-hidden />
           <DialogPrimitive.Title className="sr-only">

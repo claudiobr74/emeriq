@@ -35,7 +35,7 @@ export function ConsultationApp() {
         elapsedMs={session.elapsedMs}
         showStatus={live}
         showTimer={live}
-        onOpenSettings={live ? () => setSettingsOpen(true) : undefined}
+        onOpenSettings={() => setSettingsOpen(true)}
       />
 
       {showStart ? (
@@ -57,6 +57,7 @@ export function ConsultationApp() {
           partialTranscript={session.partialTranscript}
           isTranscribing={session.isTranscribing}
           isDegraded={session.isDegraded}
+          isReconnecting={session.transcriptionStatus === "reconnecting"}
           hasFailedSegments={session.hasFailedSegments}
           isUpdating={session.isUpdating}
           transcriptionError={session.transcriptionError}
@@ -74,6 +75,7 @@ export function ConsultationApp() {
       {session.phase === "completed" && session.report ? (
         <SoapSummary
           report={session.report}
+          warning={session.finalizeWarning}
           onNewConsultation={() => void session.reset()}
         />
       ) : null}

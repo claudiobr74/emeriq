@@ -18,7 +18,7 @@ export function StartScreen({ starting, error, onStart }: StartScreenProps) {
           <ShieldCheck className="h-8 w-8 text-primary" aria-hidden />
         </div>
 
-        <div className="mt-6 rounded-xl bg-white px-6 py-4 shadow-sm">
+        <div className="mt-6 rounded-xl bg-surface px-6 py-4 shadow-sm">
           <Image
             src="/brand/emeriq-logo-full.svg"
             alt="EmerIQ"

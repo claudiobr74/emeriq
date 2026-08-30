@@ -14,6 +14,7 @@ import { ClinicalAlerts } from "@/components/clinical/ClinicalAlerts";
 
 interface SoapSummaryProps {
   report: FinalClinicalReport;
+  warning?: string | null;
   onNewConsultation: () => void;
 }
 
@@ -24,7 +25,11 @@ const SOAP_SECTIONS = [
   { letter: "P", title: "Plano", key: "plan" },
 ] as const;
 
-export function SoapSummary({ report, onNewConsultation }: SoapSummaryProps) {
+export function SoapSummary({
+  report,
+  warning,
+  onNewConsultation,
+}: SoapSummaryProps) {
   const [copied, setCopied] = useState<"soap" | "full" | null>(null);
 
   async function handleCopy(kind: "soap" | "full") {
@@ -38,6 +43,14 @@ export function SoapSummary({ report, onNewConsultation }: SoapSummaryProps) {
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 md:px-8">
+      {warning ? (
+        <p
+          role="status"
+          className="rounded-lg border border-warning/40 bg-warning-bg px-4 py-3 text-[13px] leading-5 text-text-body"
+        >
+          {warning}
+        </p>
+      ) : null}
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-heading">

@@ -19,6 +19,7 @@ interface ConsultationViewProps {
   partialTranscript: string;
   isTranscribing: boolean;
   isDegraded: boolean;
+  isReconnecting?: boolean;
   hasFailedSegments: boolean;
   isUpdating: boolean;
   transcriptionError: string | null;
@@ -39,6 +40,7 @@ export function ConsultationView(props: ConsultationViewProps) {
     partialTranscript,
     isTranscribing,
     isDegraded,
+    isReconnecting = false,
     hasFailedSegments,
     isUpdating,
     transcriptionError,
@@ -53,6 +55,12 @@ export function ConsultationView(props: ConsultationViewProps) {
 
   const banners = (
     <>
+      {isReconnecting ? (
+        <ErrorBanner
+          kind="connection"
+          message="Reconectando a transcrição em tempo real. A consulta continua."
+        />
+      ) : null}
       {isDegraded ? (
         <ErrorBanner
           kind="connection"

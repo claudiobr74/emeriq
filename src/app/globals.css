@@ -34,6 +34,7 @@
   --success-bg: #eaf7ef;
 
   --ring: color-mix(in srgb, var(--primary) 45%, transparent);
+  --overlay: rgb(11 18 32 / 0.5);
 }
 
 .dark {
@@ -64,6 +65,7 @@
   --success-bg: #152a1a;
 
   --ring: color-mix(in srgb, var(--primary) 55%, transparent);
+  --overlay: rgb(11 18 32 / 0.62);
 }
 
 @theme inline {
@@ -94,6 +96,7 @@
   --color-success-bg: var(--success-bg);
 
   --color-ring: var(--ring);
+  --color-overlay: var(--overlay);
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
 

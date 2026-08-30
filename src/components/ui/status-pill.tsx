@@ -14,6 +14,8 @@ function configFor(status: DisplayStatus): PillConfig | null {
     case "listening":
     case "transcribing":
       return { label: "Ouvindo", tone: "recording", pulse: true };
+    case "reconnecting":
+      return { label: "Reconectando", tone: "processing", pulse: true };
     case "paused":
       return { label: "Pausado", tone: "neutral", pulse: false };
     case "processing":

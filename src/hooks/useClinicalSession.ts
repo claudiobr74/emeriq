@@ -46,15 +46,49 @@ function applyManualOverlays(
   };
 }
 
+const SETTINGS_STORAGE_KEY = "emeriq.settings";
+
+function loadSettings(): AppSettings {
+  if (typeof window === "undefined") return DEFAULT_SETTINGS;
+  try {
+    const raw = window.localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (!raw) return DEFAULT_SETTINGS;
+    const parsed = JSON.parse(raw) as Partial<AppSettings>;
+    return {
+      ...DEFAULT_SETTINGS,
+      transcription:
+        parsed.transcription === "turbo" || parsed.transcription === "standard"
+          ? parsed.transcription
+          : DEFAULT_SETTINGS.transcription,
+      showQuestions: parsed.showQuestions ?? DEFAULT_SETTINGS.showQuestions,
+      showHypotheses: parsed.showHypotheses ?? DEFAULT_SETTINGS.showHypotheses,
+      showAlerts: parsed.showAlerts ?? DEFAULT_SETTINGS.showAlerts,
+      showTests: parsed.showTests ?? DEFAULT_SETTINGS.showTests,
+      showTreatments: parsed.showTreatments ?? DEFAULT_SETTINGS.showTreatments,
+    };
+  } catch {
+    return DEFAULT_SETTINGS;
+  }
+}
+
+function persistSettings(next: AppSettings): void {
+  try {
+    window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(next));
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
 export function useClinicalSession() {
   const [phase, setPhase] = useState<SessionPhase>("idle");
-  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const [settings, setSettingsState] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [clinicalState, setClinicalState] = useState<ClinicalState>(
     createEmptyClinicalState,
   );
   const [report, setReport] = useState<FinalClinicalReport | null>(null);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [clinicalError, setClinicalError] = useState<string | null>(null);
+  const [finalizeWarning, setFinalizeWarning] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [elapsedMs, setElapsedMs] = useState(0);
 
@@ -72,9 +106,18 @@ export function useClinicalSession() {
   const elapsedOffsetRef = useRef(0);
 
   useEffect(() => {
+    setSettingsState(loadSettings());
+  }, []);
+
+  useEffect(() => {
     clinicalStateRef.current = clinicalState;
     settingsRef.current = settings;
   });
+
+  const setSettings = useCallback((next: AppSettings) => {
+    setSettingsState(next);
+    persistSettings(next);
+  }, []);
 
   const getModel = useCallback((): TranscriptionModelId => {
     return settingsRef.current.transcription === "turbo"
@@ -259,15 +302,17 @@ export function useClinicalSession() {
   }, [phase, runClinicalUpdate]);
 
   const displayStatus: DisplayStatus = useMemo(() => {
+    if (transcriptionStatus === "reconnecting") return "reconnecting";
     if (phase === "listening" && isTranscribing) return "transcribing";
     if (phase === "listening") return "listening";
     if (phase === "finalizing") return "processing";
     return phase;
-  }, [phase, isTranscribing]);
+  }, [phase, isTranscribing, transcriptionStatus]);
 
   const start = useCallback(async () => {
     setSessionError(null);
     setClinicalError(null);
+    setFinalizeWarning(null);
     setReport(null);
     const empty = createEmptyClinicalState();
     clinicalStateRef.current = empty;
@@ -324,7 +369,12 @@ export function useClinicalSession() {
     await stopRecorder();
     // Finalização transacional: aguarda o áudio pendente virar texto (confirmed
     // ou failed) antes de gerar o SOAP, para o último trecho não se perder.
-    await flushAndSettle();
+    const flush = await flushAndSettle();
+    if (flush.timedOut && flush.pendingCount > 0) {
+      setFinalizeWarning(
+        "A transcrição do último trecho não confirmou a tempo. O SOAP usa o texto já confirmado.",
+      );
+    }
     await runClinicalUpdate(true);
 
     try {
@@ -405,6 +455,7 @@ export function useClinicalSession() {
     setReport(null);
     setSessionError(null);
     setClinicalError(null);
+    setFinalizeWarning(null);
     setIsUpdating(false);
     inFlightRef.current = false;
     lastAnalyzedRef.current = "";
@@ -459,6 +510,7 @@ export function useClinicalSession() {
     report,
     sessionError,
     clinicalError,
+    finalizeWarning,
     transcriptionError,
     confirmedTranscript,
     partialTranscript,
