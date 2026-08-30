@@ -452,6 +452,7 @@ export function salvageClinicalState(raw: unknown): ClinicalState {
       respiratoryRate: asNumber(vitals.respiratoryRate),
       oxygenSaturation: asNumber(vitals.oxygenSaturation),
       temperature: asNumber(vitals.temperature),
+      glasgow: asNumber(vitals.glasgow),
       glucose: asNumber(vitals.glucose),
     },
     physicalExam: asStringArray(obj.physicalExam),

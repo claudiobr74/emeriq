@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { ClinicalState } from "@/types/clinical";
 import {
   VITAL_DESCRIPTORS,
+  VITAL_GLUCOSE,
   isVitalCritical,
   parseVitalInput,
   type VitalDescriptor,
@@ -75,18 +76,20 @@ function VitalCard({
 
 export function VitalsBar({ vitals, onChange }: VitalsBarProps) {
   return (
-    <div
-      data-testid="vitals-bar"
-      className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6"
-    >
-      {VITAL_DESCRIPTORS.map((descriptor) => (
-        <VitalCard
-          key={descriptor.field}
-          descriptor={descriptor}
-          vitals={vitals}
-          onChange={onChange}
-        />
-      ))}
+    <div data-testid="vitals-bar" className="flex flex-col gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        {VITAL_DESCRIPTORS.map((descriptor) => (
+          <VitalCard
+            key={descriptor.field}
+            descriptor={descriptor}
+            vitals={vitals}
+            onChange={onChange}
+          />
+        ))}
+      </div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <VitalCard descriptor={VITAL_GLUCOSE} vitals={vitals} onChange={onChange} />
+      </div>
     </div>
   );
 }

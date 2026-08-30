@@ -54,7 +54,10 @@ export function ConsultationApp() {
           state={session.clinicalState}
           settings={session.settings}
           confirmedTranscript={session.confirmedTranscript}
+          partialTranscript={session.partialTranscript}
           isTranscribing={session.isTranscribing}
+          isDegraded={session.isDegraded}
+          hasFailedSegments={session.hasFailedSegments}
           isUpdating={session.isUpdating}
           transcriptionError={session.transcriptionError}
           clinicalError={session.clinicalError}

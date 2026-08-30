@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AI_CONFIG,
-  getAnalysisThresholds,
+  getAnalysisCadence,
   type TranscriptionModelId,
 } from "@/config/ai";
 import { createEmptyClinicalState } from "@/lib/clinical/clinical-state";
@@ -84,11 +84,18 @@ export function useClinicalSession() {
 
   const {
     confirmedTranscript,
-    latestTranscriptSegment,
+    partialTranscript,
+    status: transcriptionStatus,
     isTranscribing,
+    isDegraded,
+    hasFailedSegments,
     error: transcriptionError,
+    start: startTranscription,
+    pushPcm,
     enqueue,
-    waitForIdle,
+    pause: pauseTranscription,
+    resume: resumeTranscription,
+    flushAndSettle,
     getConfirmed,
     reset: resetTranscription,
   } = useTranscription({ getModel });
@@ -100,6 +107,7 @@ export function useClinicalSession() {
     stop: stopRecorder,
   } = useAudioRecorder({
     onChunk: enqueue,
+    onPcmFrame: pushPcm,
     onError: (message) => {
       setSessionError(message);
       setPhase("error");
@@ -128,7 +136,7 @@ export function useClinicalSession() {
     if (!confirmed.trim()) return;
     if (!force && !newSegment) return;
 
-    const thresholds = getAnalysisThresholds(settingsRef.current.analysisPace);
+    const thresholds = getAnalysisCadence();
     const elapsed = Date.now() - lastAnalyzedAtRef.current;
     const triggered = hasClinicalTrigger(newSegment, clinicalStateRef.current);
     const enoughText = newSegment.length >= thresholds.minNewChars;
@@ -147,7 +155,10 @@ export function useClinicalSession() {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
-    const timeout = window.setTimeout(() => controller.abort(), 65_000);
+    const timeout = window.setTimeout(
+      () => controller.abort(),
+      AI_CONFIG.timeouts.clinicalUpdateMs,
+    );
     const startedAt = Date.now();
     const sequence = sequenceRef.current + 1;
     sequenceRef.current = sequence;
@@ -207,7 +218,10 @@ export function useClinicalSession() {
       setClinicalError(null);
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
-        if (sequenceRef.current === sequence && Date.now() - startedAt > 60_000) {
+        if (
+          sequenceRef.current === sequence &&
+          Date.now() - startedAt > AI_CONFIG.timeouts.clinicalUpdateMs - 3_000
+        ) {
           lastAnalyzedAtRef.current = Date.now();
           setClinicalError(
             "A análise clínica demorou demais. A gravação continua; nova tentativa em instantes.",
@@ -268,6 +282,7 @@ export function useClinicalSession() {
     setElapsedMs(0);
     setPhase("starting");
     try {
+      await startTranscription();
       await startRecorder();
       elapsedOriginRef.current = Date.now();
       setPhase("listening");
@@ -279,22 +294,24 @@ export function useClinicalSession() {
       );
       setPhase("error");
     }
-  }, [startRecorder]);
+  }, [startRecorder, startTranscription]);
 
   const pause = useCallback(() => {
     pauseRecorder();
+    pauseTranscription();
     if (elapsedOriginRef.current != null) {
       elapsedOffsetRef.current += Date.now() - elapsedOriginRef.current;
       elapsedOriginRef.current = null;
     }
     setPhase("paused");
-  }, [pauseRecorder]);
+  }, [pauseRecorder, pauseTranscription]);
 
   const resume = useCallback(async () => {
+    resumeTranscription();
     await resumeRecorder();
     elapsedOriginRef.current = Date.now();
     setPhase("listening");
-  }, [resumeRecorder]);
+  }, [resumeRecorder, resumeTranscription]);
 
   const finalize = useCallback(async () => {
     setPhase("finalizing");
@@ -305,7 +322,9 @@ export function useClinicalSession() {
     }
     abortRef.current?.abort();
     await stopRecorder();
-    await waitForIdle();
+    // Finalização transacional: aguarda o áudio pendente virar texto (confirmed
+    // ou failed) antes de gerar o SOAP, para o último trecho não se perder.
+    await flushAndSettle();
     await runClinicalUpdate(true);
 
     try {
@@ -340,7 +359,7 @@ export function useClinicalSession() {
       );
       setPhase("error");
     }
-  }, [getConfirmed, runClinicalUpdate, stopRecorder, waitForIdle]);
+  }, [getConfirmed, runClinicalUpdate, stopRecorder, flushAndSettle]);
 
   const retryFinalize = useCallback(async () => {
     setSessionError(null);
@@ -442,7 +461,10 @@ export function useClinicalSession() {
     clinicalError,
     transcriptionError,
     confirmedTranscript,
-    latestTranscriptSegment,
+    partialTranscript,
+    transcriptionStatus,
+    isDegraded,
+    hasFailedSegments,
     isTranscribing,
     isUpdating,
     elapsedMs,

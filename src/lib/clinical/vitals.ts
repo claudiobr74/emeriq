@@ -7,6 +7,7 @@ export type VitalNumericField =
   | "respiratoryRate"
   | "oxygenSaturation"
   | "temperature"
+  | "glasgow"
   | "glucose";
 
 export type VitalField = "bloodPressure" | VitalNumericField;
@@ -18,10 +19,9 @@ export interface VitalDescriptor {
 }
 
 /**
- * Ordem e rótulos dos cartões de sinais vitais (Figma consultation 5:82).
- * O 6º slot do Figma ("Glasgow") é mapeado para Glicemia, o dado realmente
- * rastreado pelo pipeline clínico e usado pela Safety Layer (hipoglicemia);
- * não exibimos um campo sem efeito no runtime (zero mocks).
+ * Seis sinais vitais principais na ordem do Figma (consultation 5:82):
+ * PA, FC, SpO₂, FR, Temp, Glasgow. A Glicemia é exibida como cartão
+ * complementar (VITAL_GLUCOSE) para não sacrificar a fidelidade do layout.
  */
 export const VITAL_DESCRIPTORS: VitalDescriptor[] = [
   { field: "bloodPressure", label: "PA", unit: "mmHg" },
@@ -29,8 +29,14 @@ export const VITAL_DESCRIPTORS: VitalDescriptor[] = [
   { field: "oxygenSaturation", label: "SpO₂", unit: "%" },
   { field: "respiratoryRate", label: "FR", unit: "irpm" },
   { field: "temperature", label: "Temp", unit: "°C" },
-  { field: "glucose", label: "Glicemia", unit: "mg/dL" },
+  { field: "glasgow", label: "Glasgow", unit: "" },
 ];
+
+export const VITAL_GLUCOSE: VitalDescriptor = {
+  field: "glucose",
+  label: "Glicemia",
+  unit: "mg/dL",
+};
 
 /**
  * Marca um sinal vital como crítico reutilizando os limiares centralizados da

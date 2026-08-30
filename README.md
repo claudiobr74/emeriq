@@ -4,6 +4,17 @@ Assistente clínica em tempo real para pronto-socorro: ouvir, transcrever, organ
 
 Ferramenta de apoio ao profissional médico. Não substitui julgamento clínico.
 
+## AI Architecture
+
+**OpenAI only.** (fonte de verdade: `ARCHITECTURE.md`)
+
+- **Transcription:** OpenAI Realtime transcription (`gpt-4o-transcribe`), com fallback
+  degradado para `POST /api/transcribe` (chunks REST) se a sessão Realtime falhar.
+- **Clinical reasoning:** OpenAI (`gpt-4o-mini`).
+- **Groq:** not used.
+- A `OPENAI_API_KEY` fica só no servidor; o browser usa uma credencial efêmera
+  (`POST /api/realtime/session`). Ver `DEPLOYMENT.md` e `DEPLOYMENT_SECURITY.md`.
+
 ## Pré-requisitos
 
 - Node.js 20 ou superior (recomendado 22)
@@ -52,12 +63,11 @@ Se aparecer “Page not found” da Netlify, o runtime do Next.js não está ati
 
 ### Timeout das APIs no Netlify
 
-As rotas `/api/transcribe`, `/api/clinical/update` e `/api/clinical/finalize` rodam em funções serverless.
-
-- plano gratuito / Starter: **10 segundos** (padrão; não altere isso no `netlify.toml`)
-- plano Pro: até **26 segundos**, só depois que o suporte da Netlify ativar o teto na conta
-
-A transcrição em trechos curtos e a análise clínica costumam caber em 10s. Se aparecer 504, rode localmente com `pnpm dev` ou peça o aumento no plano Pro.
+As rotas rodam em funções serverless com `maxDuration` coerente (30/45/60 s) — ver
+`DEPLOYMENT.md` para a tabela e os tetos por plano. No plano gratuito/Starter da
+Netlify há teto de **10 s**; a transcrição principal é **Realtime** (client → OpenAI,
+sem passar pela função), então não sofre esse teto. Para atendimentos longos use
+Netlify Pro (26 s) ou plataforma que honre `maxDuration` maior.
 
 ## Scripts
 

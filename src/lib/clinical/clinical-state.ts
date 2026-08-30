@@ -28,6 +28,7 @@ export function createEmptyClinicalState(): ClinicalState {
       respiratoryRate: null,
       oxygenSaturation: null,
       temperature: null,
+      glasgow: null,
       glucose: null,
     },
     physicalExam: [],

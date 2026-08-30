@@ -3,44 +3,35 @@ import { cn } from "@/lib/utils";
 
 interface LogoProps {
   className?: string;
-  iconClassName?: string;
-  wordmarkClassName?: string;
-  showWordmark?: boolean;
-  iconSize?: number;
+  /** Altura do logo em px (largura mantém o aspect ratio 105:28). */
+  height?: number;
 }
 
 /**
- * Marca oficial do EmerIQ. O ícone é o asset SVG oficial (public/brand);
- * a wordmark é texto Inter para herdar o token de tema (navy no claro,
- * claro no escuro). Nunca redesenhar via CSS (seção 14).
+ * Marca oficial do EmerIQ (logo Header, node 10:250). Usa o asset SVG oficial —
+ * ícone + wordmark — em vez de recriar o texto via HTML (seção 19). A variante
+ * escura recolore a wordmark navy para clara, preservando o traçado oficial.
  */
-export function Logo({
-  className,
-  iconClassName,
-  wordmarkClassName,
-  showWordmark = true,
-  iconSize = 32,
-}: LogoProps) {
+export function Logo({ className, height = 28 }: LogoProps) {
+  const width = Math.round((height * 105) / 28);
   return (
-    <div className={cn("flex items-center gap-2", className)}>
+    <span className={cn("inline-flex items-center", className)}>
       <Image
-        src="/brand/emeriq-logo-icon.svg"
+        src="/brand/emeriq-logo-header.svg"
         alt="EmerIQ"
-        width={iconSize}
-        height={Math.round((iconSize * 155) / 175)}
+        width={width}
+        height={height}
         priority
-        className={cn("h-7 w-8", iconClassName)}
+        className="block h-7 w-auto dark:hidden"
       />
-      {showWordmark ? (
-        <span
-          className={cn(
-            "text-[18px] font-bold leading-none text-heading",
-            wordmarkClassName,
-          )}
-        >
-          EmerIQ
-        </span>
-      ) : null}
-    </div>
+      <Image
+        src="/brand/emeriq-logo-header-dark.svg"
+        alt="EmerIQ"
+        width={width}
+        height={height}
+        priority
+        className="hidden h-7 w-auto dark:block"
+      />
+    </span>
   );
 }

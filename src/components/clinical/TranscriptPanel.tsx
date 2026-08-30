@@ -5,12 +5,14 @@ import { AlignLeft } from "lucide-react";
 
 interface TranscriptPanelProps {
   transcript: string;
+  partial?: string;
   isTranscribing: boolean;
   className?: string;
 }
 
 export function TranscriptPanel({
   transcript,
+  partial = "",
   isTranscribing,
   className,
 }: TranscriptPanelProps) {
@@ -21,7 +23,7 @@ export function TranscriptPanel({
     const el = containerRef.current;
     if (!el || !stickToBottomRef.current) return;
     el.scrollTop = el.scrollHeight;
-  }, [transcript, isTranscribing]);
+  }, [transcript, partial, isTranscribing]);
 
   return (
     <section
@@ -52,23 +54,27 @@ export function TranscriptPanel({
           <p className="animate-fade-in whitespace-pre-wrap text-[15px] leading-6 text-text-body">
             {transcript}
           </p>
-        ) : (
+        ) : partial ? null : (
           <p className="text-[15px] leading-6 text-text-muted">
             A transcrição aparecerá aqui conforme a conversa for capturada.
           </p>
         )}
 
+        {/* Partial transcript: transitório, menor contraste (Figma). Nunca é
+            incorporado duas vezes — vira confirmed ao ser finalizado. */}
+        {partial ? (
+          <p className="mt-1 whitespace-pre-wrap text-[15px] leading-6 text-text-muted opacity-60">
+            {transcript ? " " : ""}
+            {partial}
+          </p>
+        ) : null}
+
         {isTranscribing ? (
-          <div className="mt-4 flex flex-col gap-2">
-            <p className="text-[15px] leading-6 text-text-muted opacity-60">
-              Transcrevendo o trecho mais recente…
-            </p>
-            <span className="flex gap-1" aria-hidden>
-              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:-0.2s]" />
-              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:-0.1s]" />
-              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary" />
-            </span>
-          </div>
+          <span className="mt-3 flex gap-1" aria-hidden>
+            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:-0.2s]" />
+            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:-0.1s]" />
+            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary" />
+          </span>
         ) : null}
       </div>
     </section>

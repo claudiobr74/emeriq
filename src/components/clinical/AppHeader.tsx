@@ -5,7 +5,6 @@ import { formatElapsed } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/brand/Logo";
 import { StatusPill } from "@/components/ui/status-pill";
-import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import type { DisplayStatus } from "@/types/clinical";
 
 interface AppHeaderProps {
@@ -37,7 +36,6 @@ export function AppHeader({
         {(showStatus || showTimer) && onOpenSettings ? (
           <span className="hidden h-6 w-px bg-border sm:block" aria-hidden />
         ) : null}
-        <ThemeToggle />
         {onOpenSettings ? (
           <Button
             type="button"

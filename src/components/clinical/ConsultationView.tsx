@@ -16,7 +16,10 @@ interface ConsultationViewProps {
   state: ClinicalState;
   settings: AppSettings;
   confirmedTranscript: string;
+  partialTranscript: string;
   isTranscribing: boolean;
+  isDegraded: boolean;
+  hasFailedSegments: boolean;
   isUpdating: boolean;
   transcriptionError: string | null;
   clinicalError: string | null;
@@ -33,7 +36,10 @@ export function ConsultationView(props: ConsultationViewProps) {
     state,
     settings,
     confirmedTranscript,
+    partialTranscript,
     isTranscribing,
+    isDegraded,
+    hasFailedSegments,
     isUpdating,
     transcriptionError,
     clinicalError,
@@ -47,6 +53,18 @@ export function ConsultationView(props: ConsultationViewProps) {
 
   const banners = (
     <>
+      {isDegraded ? (
+        <ErrorBanner
+          kind="connection"
+          message="Transcrição em modo degradado (processamento em trechos). A consulta continua normalmente."
+        />
+      ) : null}
+      {hasFailedSegments ? (
+        <ErrorBanner
+          kind="transcription"
+          message="Um trecho não pôde ser transcrito. A consulta continua."
+        />
+      ) : null}
       {transcriptionError ? (
         <ErrorBanner kind="transcription" message={transcriptionError} />
       ) : null}
@@ -74,11 +92,13 @@ export function ConsultationView(props: ConsultationViewProps) {
     <main className="flex min-h-0 flex-1 flex-col">
       {banners}
 
-      {/* Desktop / tablet: workspace de duas colunas + vitais + footer */}
-      <div className="hidden min-h-0 flex-1 flex-col md:flex">
-        <div className="grid min-h-0 flex-1 grid-cols-2 gap-6 p-6">
+      {/* Tablet (>=640) e Desktop (>=1024): workspace de duas colunas.
+          Tablet ~50/50; Desktop assimétrico 55/45 (transcrição/assistente). */}
+      <div className="hidden min-h-0 flex-1 flex-col sm:flex">
+        <div className="grid min-h-0 flex-1 grid-cols-2 gap-6 p-6 lg:grid-cols-[55fr_45fr]">
           <TranscriptPanel
             transcript={confirmedTranscript}
+            partial={partialTranscript}
             isTranscribing={isTranscribing}
             className="min-h-0"
           />
@@ -96,8 +116,8 @@ export function ConsultationView(props: ConsultationViewProps) {
         {footer}
       </div>
 
-      {/* Mobile: segmented control Consulta | Assistente */}
-      <div className="flex min-h-0 flex-1 flex-col md:hidden">
+      {/* Mobile (<640): segmented control Consulta | Assistente */}
+      <div className="flex min-h-0 flex-1 flex-col sm:hidden">
         <div className="p-4 pb-0">
           <MobileTabs value={mobileTab} onChange={setMobileTab} />
         </div>
@@ -106,6 +126,7 @@ export function ConsultationView(props: ConsultationViewProps) {
             <>
               <TranscriptPanel
                 transcript={confirmedTranscript}
+                partial={partialTranscript}
                 isTranscribing={isTranscribing}
               />
               {vitalsAndInput}

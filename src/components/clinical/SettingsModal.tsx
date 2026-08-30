@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useTheme, type ThemePreference } from "@/hooks/useTheme";
 import type { AppSettings } from "@/types/clinical";
 
 interface SettingsModalProps {
@@ -92,6 +93,12 @@ export function SettingsModal({
   );
 }
 
+const THEME_OPTIONS: { id: ThemePreference; label: string }[] = [
+  { id: "light", label: "Claro" },
+  { id: "dark", label: "Escuro" },
+  { id: "system", label: "Sistema" },
+];
+
 function SettingsForm({
   settings,
   onCancel,
@@ -102,97 +109,91 @@ function SettingsForm({
   onSave: (settings: AppSettings) => void;
 }) {
   const [draft, setDraft] = useState<AppSettings>(settings);
+  const { preference, setTheme } = useTheme();
 
   return (
     <DialogContent aria-describedby={undefined}>
       <DialogTitle>Configurações</DialogTitle>
 
-        <div className="mt-5 space-y-5 border-t border-border pt-5">
-          <section className="space-y-2">
-            <SectionLabel>Transcrição</SectionLabel>
-            <div
-              role="radiogroup"
-              aria-label="Modo de transcrição"
-              className="flex flex-wrap gap-x-6 gap-y-1"
-            >
-              <RadioRow
-                label="Tempo real"
-                checked={draft.transcription === "turbo"}
-                onSelect={() => setDraft({ ...draft, transcription: "turbo" })}
-              />
-              <RadioRow
-                label="Alta precisão"
-                checked={draft.transcription === "standard"}
-                onSelect={() => setDraft({ ...draft, transcription: "standard" })}
-              />
-            </div>
-          </section>
+      <div className="mt-5 space-y-5 border-t border-border pt-5">
+        <section className="space-y-2">
+          <SectionLabel>Transcrição</SectionLabel>
+          <div
+            role="radiogroup"
+            aria-label="Modo de transcrição"
+            className="flex flex-wrap gap-x-6 gap-y-1"
+          >
+            <RadioRow
+              label="Tempo real"
+              checked={draft.transcription === "turbo"}
+              onSelect={() => setDraft({ ...draft, transcription: "turbo" })}
+            />
+            <RadioRow
+              label="Alta precisão"
+              checked={draft.transcription === "standard"}
+              onSelect={() => setDraft({ ...draft, transcription: "standard" })}
+            />
+          </div>
+        </section>
 
-          <section className="space-y-2">
-            <SectionLabel>Análise</SectionLabel>
-            <div
-              role="radiogroup"
-              aria-label="Ritmo de análise"
-              className="flex flex-wrap gap-x-6 gap-y-1"
-            >
+        <section className="space-y-2">
+          <SectionLabel>Tema</SectionLabel>
+          <div
+            role="radiogroup"
+            aria-label="Tema da interface"
+            className="flex flex-wrap gap-x-6 gap-y-1"
+          >
+            {THEME_OPTIONS.map((option) => (
               <RadioRow
-                label="Rápida"
-                checked={draft.analysisPace === "fast"}
-                onSelect={() => setDraft({ ...draft, analysisPace: "fast" })}
+                key={option.id}
+                label={option.label}
+                checked={preference === option.id}
+                onSelect={() => setTheme(option.id)}
               />
-              <RadioRow
-                label="Equilibrada"
-                checked={draft.analysisPace === "balanced"}
-                onSelect={() => setDraft({ ...draft, analysisPace: "balanced" })}
-              />
-              <RadioRow
-                label="Profunda"
-                checked={draft.analysisPace === "economical"}
-                onSelect={() => setDraft({ ...draft, analysisPace: "economical" })}
-              />
-            </div>
-          </section>
+            ))}
+          </div>
+        </section>
 
-          <section className="space-y-2">
-            <SectionLabel>Mostrar no painel</SectionLabel>
-            <div className="flex flex-wrap gap-x-6 gap-y-2">
-              <CheckRow
-                label="Perguntas"
-                checked={draft.showQuestions}
-                onCheckedChange={(v) => setDraft({ ...draft, showQuestions: v })}
-              />
-              <CheckRow
-                label="Hipóteses"
-                checked={draft.showHypotheses}
-                onCheckedChange={(v) => setDraft({ ...draft, showHypotheses: v })}
-              />
-              <CheckRow
-                label="Alertas"
-                checked={draft.showAlerts}
-                onCheckedChange={(v) => setDraft({ ...draft, showAlerts: v })}
-              />
-              <CheckRow
-                label="Exames"
-                checked={draft.showTests}
-                onCheckedChange={(v) => setDraft({ ...draft, showTests: v })}
-              />
-              <CheckRow
-                label="Condutas"
-                checked={draft.showTreatments}
-                onCheckedChange={(v) => setDraft({ ...draft, showTreatments: v })}
-              />
-            </div>
-          </section>
-        </div>
+        <section className="space-y-2">
+          <SectionLabel>Mostrar no painel</SectionLabel>
+          <div className="flex flex-wrap gap-x-6 gap-y-2">
+            <CheckRow
+              label="Perguntas"
+              checked={draft.showQuestions}
+              onCheckedChange={(v) => setDraft({ ...draft, showQuestions: v })}
+            />
+            <CheckRow
+              label="Hipóteses"
+              checked={draft.showHypotheses}
+              onCheckedChange={(v) => setDraft({ ...draft, showHypotheses: v })}
+            />
+            <CheckRow
+              label="Alertas"
+              checked={draft.showAlerts}
+              onCheckedChange={(v) => setDraft({ ...draft, showAlerts: v })}
+            />
+            <CheckRow
+              label="Exames"
+              checked={draft.showTests}
+              onCheckedChange={(v) => setDraft({ ...draft, showTests: v })}
+            />
+            <CheckRow
+              label="Condutas"
+              checked={draft.showTreatments}
+              onCheckedChange={(v) => setDraft({ ...draft, showTreatments: v })}
+            />
+          </div>
+        </section>
+      </div>
 
-        <div className="mt-6 flex justify-end gap-2 border-t border-border pt-4">
-          <Button variant="secondary" size="sm" onClick={onCancel}>
-            Cancelar
-          </Button>
-          <Button size="sm" onClick={() => onSave(draft)}>
-            Salvar alterações
-          </Button>
-        </div>
+      <div className="mt-6 flex justify-end gap-2 border-t border-border pt-4">
+        <Button variant="secondary" size="sm" onClick={onCancel}>
+          Cancelar
+        </Button>
+        <Button size="sm" onClick={() => onSave(draft)}>
+          Salvar alterações
+        </Button>
+      </div>
     </DialogContent>
   );
 }
