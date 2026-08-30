@@ -1,14 +1,14 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 const createConsultation = vi.fn();
-const supabaseReady = vi.fn();
+const appwriteReady = vi.fn();
 
-vi.mock("@/lib/supabase/consultations", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/supabase/consultations")>();
+vi.mock("@/lib/appwrite/consultations", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/appwrite/consultations")>();
   return {
     ...actual,
     createConsultation: (...args: unknown[]) => createConsultation(...args),
-    supabaseReady: () => supabaseReady(),
+    appwriteReady: () => appwriteReady(),
   };
 });
 
@@ -29,8 +29,8 @@ function req(init: {
 describe("POST /api/consultations", () => {
   beforeEach(() => {
     createConsultation.mockReset();
-    supabaseReady.mockReset();
-    supabaseReady.mockReturnValue(true);
+    appwriteReady.mockReset();
+    appwriteReady.mockReturnValue(true);
     createConsultation.mockResolvedValue({
       id: "11111111-1111-4111-8111-111111111111",
       created_at: "2026-08-30T00:00:00.000Z",
@@ -60,8 +60,8 @@ describe("POST /api/consultations", () => {
     expect(json.id).toMatch(/^[0-9a-f-]{36}$/);
   });
 
-  it("returns 503 when Supabase is not configured", async () => {
-    supabaseReady.mockReturnValue(false);
+  it("returns 503 when Appwrite is not configured", async () => {
+    appwriteReady.mockReturnValue(false);
     const res = await POST(
       req({
         headers: {

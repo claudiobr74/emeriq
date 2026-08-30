@@ -11,8 +11,11 @@ Netlify, se necessário. As rotas são funções serverless (runtime Node.js).
 | Nome | Escopo | Valor |
 | --- | --- | --- |
 | `OPENAI_API_KEY` | Production, Preview, Development | `sk-...` |
-| `SUPABASE_URL` | Production, Preview, Development | `https://<ref>.supabase.co` |
-| `SUPABASE_SERVICE_ROLE_KEY` | Production, Preview, Development | service role (server-only) |
+| `APPWRITE_ENDPOINT` | Production, Preview, Development | `https://cloud.appwrite.io/v1` |
+| `APPWRITE_PROJECT_ID` | Production, Preview, Development | project id |
+| `APPWRITE_API_KEY` | Production, Preview, Development | API key server-only (`rows.read/write`) |
+| `APPWRITE_DATABASE_ID` | Production, Preview, Development | `emeriq` (default) |
+| `APPWRITE_TABLE_ID` | Production, Preview, Development | `consultations` (default) |
 
 Nunca expor a chave no client (sem `NEXT_PUBLIC_*`). A transcrição Realtime usa
 **credencial efêmera** mintada em `POST /api/realtime/session` (a chave permanente

@@ -3,15 +3,15 @@ import { createEmptyClinicalState } from "@/lib/clinical/clinical-state";
 
 const getConsultation = vi.fn();
 const updateConsultation = vi.fn();
-const supabaseReady = vi.fn();
+const appwriteReady = vi.fn();
 
-vi.mock("@/lib/supabase/consultations", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/supabase/consultations")>();
+vi.mock("@/lib/appwrite/consultations", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/appwrite/consultations")>();
   return {
     ...actual,
     getConsultation: (...args: unknown[]) => getConsultation(...args),
     updateConsultation: (...args: unknown[]) => updateConsultation(...args),
-    supabaseReady: () => supabaseReady(),
+    appwriteReady: () => appwriteReady(),
   };
 });
 
@@ -34,8 +34,8 @@ describe("GET/PATCH /api/consultations/[id]", () => {
   beforeEach(() => {
     getConsultation.mockReset();
     updateConsultation.mockReset();
-    supabaseReady.mockReset();
-    supabaseReady.mockReturnValue(true);
+    appwriteReady.mockReset();
+    appwriteReady.mockReturnValue(true);
     getConsultation.mockResolvedValue(row);
     updateConsultation.mockResolvedValue({ ...row, status: "finalized" });
   });

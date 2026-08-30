@@ -54,11 +54,11 @@ Groq, Web Speech API, autenticação de usuários, Nhost/Redis, RAG, agentes,
 dashboard, prontuário/pacientes/agenda, FHIR/HL7. Ver limites em
 `DEPLOYMENT_SECURITY.md`.
 
-**Persistência opcional (Supabase):** a tabela `consultations` guarda transcrição
-confirmada, `ClinicalState` e SOAP do atendimento corrente. Credenciais
-(`SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`) ficam só no servidor. Sem a
-configuração, o app continua em memória (recarregar a página encerra o
-atendimento). Não é prontuário, autenticação nem RAG.
+**Persistência opcional (Appwrite TablesDB):** a tabela `consultations` guarda
+transcrição confirmada, `ClinicalState` e SOAP do atendimento corrente.
+Credenciais (`APPWRITE_ENDPOINT` + `APPWRITE_PROJECT_ID` + `APPWRITE_API_KEY`)
+ficam só no servidor. Sem a configuração, o app continua em memória. Não é
+prontuário, autenticação nem RAG.
 
 Documentos históricos (não operacionais) estão em `docs/archive/` e em
 `CORRECTIVE_AUDIT_BEFORE.md`. O relatório desta rodada é `EMERIQ_CORRECTIVE_REPORT.md`.

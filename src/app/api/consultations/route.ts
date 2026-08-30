@@ -4,8 +4,8 @@ import { clinicalStateSchema, finalClinicalReportSchema } from "@/lib/clinical/s
 import {
   createConsultation,
   consultationStatusSchema,
-  supabaseReady,
-} from "@/lib/supabase/consultations";
+  appwriteReady,
+} from "@/lib/appwrite/consultations";
 import {
   ensureJsonContentType,
   ensureSameOrigin,
@@ -29,8 +29,8 @@ export async function POST(request: Request) {
   try {
     ensureSameOrigin(request);
     ensureJsonContentType(request);
-    if (!supabaseReady()) {
-      throw new AppError("Supabase não configurado.", "supabase_not_configured", 503);
+    if (!appwriteReady()) {
+      throw new AppError("Appwrite não configurado.", "appwrite_not_configured", 503);
     }
     const body = await readJsonLimited(request);
     const parsed = createBodySchema.safeParse(body);

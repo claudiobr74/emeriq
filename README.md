@@ -49,17 +49,18 @@ A chave fica só no `.env.local`. Nunca use `NEXT_PUBLIC_OPENAI_API_KEY` e não 
    | Nome | Valor |
    |---|---|
    | `OPENAI_API_KEY` | sua chave `sk-...` |
-   | `SUPABASE_URL` | URL do projeto Supabase |
-   | `SUPABASE_SERVICE_ROLE_KEY` | service role (nunca `NEXT_PUBLIC_*`) |
+   | `APPWRITE_ENDPOINT` | `https://cloud.appwrite.io/v1` |
+   | `APPWRITE_PROJECT_ID` | id do projeto Appwrite |
+   | `APPWRITE_API_KEY` | API key server-only (nunca `NEXT_PUBLIC_*`) |
 
-4. Confira `https://SEU-PROJETO.vercel.app/api/health` →
-   `{"openaiConfigured":true,"supabaseConfigured":true}`.
-5. Ative **Deployment Protection** (Vercel Authentication) enquanto não houver
+4. No Appwrite Console: crie o projeto e uma API key com `tables.write`,
+   `columns.write`, `rows.read` e `rows.write`. Depois rode `pnpm appwrite:setup`.
+5. Confira `https://SEU-PROJETO.vercel.app/api/health` →
+   `{"openaiConfigured":true,"appwriteConfigured":true}`.
+6. Ative **Deployment Protection** (Vercel Authentication) enquanto não houver
    login na aplicação — evita proxy aberto da OpenAI.
 
 A URL `https://….vercel.app` já é HTTPS (necessário para o microfone).
-
-Schema do banco: `supabase/migrations/20260830120000_consultations.sql`.
 
 ## Deploy no Netlify (via GitHub)
 
@@ -132,7 +133,7 @@ Opcional: `EVAL_LIMIT=5`, `EVAL_FILTER=chest-pain,thunderclap` ou `EVAL_RESUME=1
 
 ## Limitações atuais
 
-- Persistência opcional no Supabase (atendimento corrente + SOAP). Sem as
+- Persistência opcional no Appwrite (atendimento corrente + SOAP). Sem as
   variáveis, recarregar a página encerra o atendimento.
 - Sem autenticação e sem múltiplos usuários.
 - Sem RAG vetorial ou embeddings.

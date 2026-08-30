@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/env", () => ({
   getOpenAiApiKey: () => "sk-test",
-  isSupabaseConfigured: () => false,
+  isAppwriteConfigured: () => false,
 }));
 
 import { GET } from "@/app/api/health/route";
@@ -13,7 +13,7 @@ describe("GET /api/health", () => {
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({
       openaiConfigured: true,
-      supabaseConfigured: false,
+      appwriteConfigured: false,
     });
   });
 });

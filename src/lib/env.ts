@@ -74,20 +74,28 @@ export function getOpenAiApiKey(): string | undefined {
   return readEnvVar("OPENAI_API_KEY");
 }
 
-export function getSupabaseUrl(): string | undefined {
-  const url = readEnvVar("SUPABASE_URL");
-  return url ? url.replace(/\/$/, "") : undefined;
+export function getAppwriteEndpoint(): string | undefined {
+  const url = readEnvVar("APPWRITE_ENDPOINT") ?? "https://cloud.appwrite.io/v1";
+  return url.replace(/\/$/, "");
 }
 
-/** Chave server-side. Preferir service role; nunca `NEXT_PUBLIC_*`. */
-export function getSupabaseServerKey(): string | undefined {
-  return (
-    readEnvVar("SUPABASE_SERVICE_ROLE_KEY") ||
-    readEnvVar("SUPABASE_SECRET_KEY") ||
-    readEnvVar("SUPABASE_ANON_KEY")
-  );
+export function getAppwriteProjectId(): string | undefined {
+  return readEnvVar("APPWRITE_PROJECT_ID");
 }
 
-export function isSupabaseConfigured(): boolean {
-  return Boolean(getSupabaseUrl() && getSupabaseServerKey());
+/** API key server-side. Nunca `NEXT_PUBLIC_*`. */
+export function getAppwriteApiKey(): string | undefined {
+  return readEnvVar("APPWRITE_API_KEY");
+}
+
+export function getAppwriteDatabaseId(): string {
+  return readEnvVar("APPWRITE_DATABASE_ID") ?? "emeriq";
+}
+
+export function getAppwriteTableId(): string {
+  return readEnvVar("APPWRITE_TABLE_ID") ?? "consultations";
+}
+
+export function isAppwriteConfigured(): boolean {
+  return Boolean(getAppwriteProjectId() && getAppwriteApiKey());
 }

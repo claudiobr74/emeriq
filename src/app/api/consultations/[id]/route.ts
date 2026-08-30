@@ -4,9 +4,9 @@ import { clinicalStateSchema, finalClinicalReportSchema } from "@/lib/clinical/s
 import {
   consultationStatusSchema,
   getConsultation,
-  supabaseReady,
+  appwriteReady,
   updateConsultation,
-} from "@/lib/supabase/consultations";
+} from "@/lib/appwrite/consultations";
 import {
   ensureJsonContentType,
   ensureSameOrigin,
@@ -34,8 +34,8 @@ export async function GET(
 ) {
   try {
     ensureSameOrigin(request);
-    if (!supabaseReady()) {
-      throw new AppError("Supabase não configurado.", "supabase_not_configured", 503);
+    if (!appwriteReady()) {
+      throw new AppError("Appwrite não configurado.", "appwrite_not_configured", 503);
     }
     const { id } = await context.params;
     if (!idSchema.safeParse(id).success) {
@@ -61,8 +61,8 @@ export async function PATCH(
   try {
     ensureSameOrigin(request);
     ensureJsonContentType(request);
-    if (!supabaseReady()) {
-      throw new AppError("Supabase não configurado.", "supabase_not_configured", 503);
+    if (!appwriteReady()) {
+      throw new AppError("Appwrite não configurado.", "appwrite_not_configured", 503);
     }
     const { id } = await context.params;
     if (!idSchema.safeParse(id).success) {
