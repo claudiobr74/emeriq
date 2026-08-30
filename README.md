@@ -117,4 +117,4 @@ Opcional: `EVAL_LIMIT=5`, `EVAL_FILTER=chest-pain,thunderclap` ou `EVAL_RESUME=1
 
 ## Como funciona
 
-O navegador captura o microfone em trechos curtos, envia cada trecho para `/api/transcribe` (OpenAI `gpt-4o-transcribe`) e atualiza o estado clínico em `/api/clinical/update` (OpenAI `gpt-4o-mini`). Ao finalizar, `/api/clinical/finalize` gera o SOAP.
+O navegador captura o microfone de forma contínua e transcreve via **OpenAI Realtime** (sessão efêmera em `/api/realtime/session`; a chave permanente não chega ao browser). Tokens provisórios aparecem como transcrição parcial; só o texto **confirmado** alimenta `/api/clinical/update` (OpenAI `gpt-4o-mini`). Se o Realtime falhar, o app cai para `/api/transcribe` em trechos (modo degradado). Ao finalizar, o último áudio é aguardado e `/api/clinical/finalize` gera o SOAP.

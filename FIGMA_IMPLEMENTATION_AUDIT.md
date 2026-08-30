@@ -125,8 +125,8 @@ representado por estados internos, reduzindo risco de regressão (seção 57 per
   `OPENAI_API_KEY`). A arquitetura conceitual do prompt (microfone → OpenAI transcrição →
   transcrição incremental → ClinicalState → modelo clínico OpenAI → Safety/Grounding → UI)
   foi seguida. Não usamos Web Speech API. A chave nunca é exposta no client (fica nas rotas
-  server-side). Mantida a arquitetura de chunks REST (transcrição incremental); a Realtime
-  API fica como evolução futura.
+  server-side). Transporte principal: OpenAI Realtime (WebSocket + sessão efêmera).
+  REST em chunks é o fallback degradado.
 - **SOAP "Realizado vs Sugestão":** o modelo de dados não marca condutas como *realizadas*.
   Como "sugestão da IA não pode aparecer como intervenção realizada" (seção 42), itens
   gerados pela IA são rotulados **Sugestão**; a UI suporta ambos os rótulos, mas em runtime

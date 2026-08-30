@@ -89,8 +89,8 @@ Groq para OpenAI**:
   exposta no client** (as chamadas ocorrem apenas nas rotas de API).
 - Arquitetura conceitual do prompt seguida: microfone → OpenAI transcrição →
   transcrição incremental → `ClinicalState` → modelo clínico OpenAI →
-  Safety/Grounding → UI. Mantida a captura em chunks REST (incremental); a
-  **Realtime API** fica como evolução futura. Não usamos Web Speech API.
+  Safety/Grounding → UI. Transporte principal: OpenAI Realtime (sessão efêmera).
+  REST em chunks é o fallback degradado. Não usamos Web Speech API.
 - Verificação de runtime: `/api/health` → `{"openaiConfigured":false|true}`; sem
   chave, as rotas retornam `missing_api_key` (comprovando o caminho até o cliente
   OpenAI). Com `OPENAI_API_KEY` definido, o fluxo completo roda contra a OpenAI.
@@ -115,7 +115,7 @@ estiver disponível.
 
 ## Test results
 
-`pnpm lint` ✓ · `pnpm typecheck` ✓ · `pnpm test` ✓ (37/37) · `pnpm build` ✓.
+`pnpm lint` ✓ · `pnpm typecheck` ✓ · `pnpm test` ✓ · `pnpm build` ✓.
 
 ## Visual QA
 
@@ -134,8 +134,9 @@ Segmented control mobile testado (troca Consulta ↔ Assistente sem perder estad
   IA aparecem como **Sugestão** (o componente suporta ambos os rótulos).
 - **Rationale popover:** exibe o fundamento real (`rationale` + achados a favor/contra),
   sem inventar protocolo/versão/seção.
-- **6º sinal vital:** o "Glasgow" do Figma é mapeado para **Glicemia**, o dado
-  realmente rastreado pela Safety Layer.
+- **Sinais vitais:** a barra principal segue o Figma (PA, FC, SpO₂, FR, Temp,
+  Glasgow). **Glicemia** permanece como card complementar — ambos existem no
+  `ClinicalState`.
 - **VitalsBar no mobile mais estreito:** 2 colunas (em vez de 3) para evitar
   truncamento do rótulo "Glicemia/mg dL" (seção 60), voltando a 3 e 6 colunas em
   telas maiores.
