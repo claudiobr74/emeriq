@@ -1,14 +1,25 @@
-# PS Assist
+# EmerIQ
 
 Assistente clínica em tempo real para pronto-socorro: ouvir, transcrever, organizar o raciocínio e documentar um SOAP.
 
 Ferramenta de apoio ao profissional médico. Não substitui julgamento clínico.
 
+## AI Architecture
+
+**OpenAI only.** (fonte de verdade: `ARCHITECTURE.md`)
+
+- **Transcription:** OpenAI Realtime transcription (`gpt-4o-transcribe`), com fallback
+  degradado para `POST /api/transcribe` (chunks REST) se a sessão Realtime falhar.
+- **Clinical reasoning:** OpenAI (`gpt-4o-mini`).
+- **Groq:** not used.
+- A `OPENAI_API_KEY` fica só no servidor; o browser usa uma credencial efêmera
+  (`POST /api/realtime/session`). Ver `DEPLOYMENT.md` e `DEPLOYMENT_SECURITY.md`.
+
 ## Pré-requisitos
 
 - Node.js 20 ou superior (recomendado 22)
 - pnpm
-- chave da Groq (`GROQ_API_KEY`)
+- chave da OpenAI (`OPENAI_API_KEY`)
 
 ## Uso local
 
@@ -16,15 +27,15 @@ Ferramenta de apoio ao profissional médico. Não substitui julgamento clínico.
 git clone https://github.com/claudiobr74/emeriq.git
 cd emeriq
 pnpm install
-printf 'GROQ_API_KEY=gsk_COLE_SUA_CHAVE_AQUI\n' > .env.local
+printf 'OPENAI_API_KEY=sk-COLE_SUA_CHAVE_AQUI\n' > .env.local
 pnpm dev
 ```
 
 Abra [http://localhost:3000](http://localhost:3000).
 
-Confira a chave sem expô-la: [http://localhost:3000/api/health](http://localhost:3000/api/health) deve retornar `{"groqConfigured":true}`.
+Confira a chave sem expô-la: [http://localhost:3000/api/health](http://localhost:3000/api/health) deve retornar `{"openaiConfigured":true}`.
 
-A chave fica só no `.env.local`. Nunca use `NEXT_PUBLIC_GROQ_API_KEY` e não faça commit desse arquivo.
+A chave fica só no `.env.local`. Nunca use `NEXT_PUBLIC_OPENAI_API_KEY` e não faça commit desse arquivo.
 
 ## Deploy no Netlify (via GitHub)
 
@@ -38,26 +49,25 @@ O repositório inclui `netlify.toml` (Node 22, pnpm) e o plugin `@netlify/plugin
 
    | Nome | Valor |
    |---|---|
-   | `GROQ_API_KEY` | sua chave `gsk_...` |
+   | `OPENAI_API_KEY` | sua chave `sk-...` |
 
    Escopo: **Production**, **Preview** e **Branch deploys**. Depois clique em **Trigger deploy → Deploy site**.
 4. A URL `https://….netlify.app` já é HTTPS (necessário para o microfone).
-5. Confira `https://SEU-SITE.netlify.app/api/health` → `{"groqConfigured":true}`.
+5. Confira `https://SEU-SITE.netlify.app/api/health` → `{"openaiConfigured":true}`.
 
 Não cole a chave no repositório, em `netlify.toml` nem em variável `NEXT_PUBLIC_*`.
 
-Se o site já estiver conectado ao GitHub, confirme **Publish directory = `.next`**, a variável `GROQ_API_KEY` e um **Trigger deploy** a partir de `main`.
+Se o site já estiver conectado ao GitHub, confirme **Publish directory = `.next`**, a variável `OPENAI_API_KEY` e um **Trigger deploy** a partir de `main`.
 
 Se aparecer “Page not found” da Netlify, o runtime do Next.js não está ativo: o `netlify.toml` deste repo já corrige isso. Faça um novo deploy depois do merge.
 
 ### Timeout das APIs no Netlify
 
-As rotas `/api/transcribe`, `/api/clinical/update` e `/api/clinical/finalize` rodam em funções serverless.
-
-- plano gratuito / Starter: **10 segundos** (padrão; não altere isso no `netlify.toml`)
-- plano Pro: até **26 segundos**, só depois que o suporte da Netlify ativar o teto na conta
-
-A transcrição em trechos curtos e a análise clínica costumam caber em 10s. Se aparecer 504, rode localmente com `pnpm dev` ou peça o aumento no plano Pro.
+As rotas rodam em funções serverless com `maxDuration` coerente (30/45/60 s) — ver
+`DEPLOYMENT.md` para a tabela e os tetos por plano. No plano gratuito/Starter da
+Netlify há teto de **10 s**; a transcrição principal é **Realtime** (client → OpenAI,
+sem passar pela função), então não sofre esse teto. Para atendimentos longos use
+Netlify Pro (26 s) ou plataforma que honre `maxDuration` maior.
 
 ## Scripts
 
@@ -85,9 +95,9 @@ Ferramenta de desenvolvimento, sem botão na interface.
 pnpm eval:clinical
 ```
 
-Requer `GROQ_API_KEY`. Processa os casos de `evaluation/cases` de forma incremental, pontua recall de emergências, alucinação e fidelidade do SOAP.
+Requer `OPENAI_API_KEY`. Processa os casos de `evaluation/cases` de forma incremental, pontua recall de emergências, alucinação e fidelidade do SOAP.
 
-A Groq no plano on-demand limita tokens por dia (TPD) por modelo. Uma corrida completa de ~35 casos pode exceder ~200k TPD. Use `EVAL_RESUME=1` no dia seguinte ou `EVAL_FILTER` / `EVAL_LIMIT` para subconjuntos.
+A OpenAI aplica limites de taxa (RPM/TPM) por modelo e conta. Uma corrida completa de ~35 casos pode esbarrar nesses limites. Use `EVAL_RESUME=1` para retomar ou `EVAL_FILTER` / `EVAL_LIMIT` para subconjuntos.
 
 Relatórios:
 
@@ -107,4 +117,4 @@ Opcional: `EVAL_LIMIT=5`, `EVAL_FILTER=chest-pain,thunderclap` ou `EVAL_RESUME=1
 
 ## Como funciona
 
-O navegador captura o microfone em trechos curtos, envia cada trecho para `/api/transcribe` (Groq Whisper) e atualiza o estado clínico em `/api/clinical/update`. Ao finalizar, `/api/clinical/finalize` gera o SOAP.
+O navegador captura o microfone em trechos curtos, envia cada trecho para `/api/transcribe` (OpenAI `gpt-4o-transcribe`) e atualiza o estado clínico em `/api/clinical/update` (OpenAI `gpt-4o-mini`). Ao finalizar, `/api/clinical/finalize` gera o SOAP.

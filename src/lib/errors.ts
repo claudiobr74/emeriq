@@ -27,7 +27,7 @@ export function microphoneErrorMessage(error: unknown): string {
 
 export function apiErrorMessage(status: number, fallback: string): string {
   if (status === 401 || status === 403) {
-    return "Falha de autenticação com o serviço de IA. Verifique a chave GROQ_API_KEY.";
+    return "Falha de autenticação com o serviço de IA. Verifique a chave OPENAI_API_KEY.";
   }
   if (status === 429) {
     return "Limite de uso do serviço de IA atingido. A gravação continua.";
@@ -47,7 +47,7 @@ export function isRetryableClinicalError(error: unknown): boolean {
   );
 }
 
-export function groqRetryAfterMs(error: unknown): number | undefined {
+export function openAiRetryAfterMs(error: unknown): number | undefined {
   const headers = (error as { headers?: Headers | Record<string, string> }).headers;
   const headerValue =
     headers instanceof Headers

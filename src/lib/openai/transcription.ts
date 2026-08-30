@@ -1,9 +1,9 @@
-import { toFile } from "groq-sdk";
+import { toFile } from "openai";
 import { AI_CONFIG, type TranscriptionModelId } from "@/config/ai";
 import { WHISPER_PROMPT } from "@/lib/clinical/prompts";
 import { AppError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
-import { getGroqClient } from "@/lib/groq/client";
+import { getOpenAiClient } from "@/lib/openai/client";
 
 export async function transcribeAudio(input: {
   audio: File | Blob;
@@ -11,7 +11,7 @@ export async function transcribeAudio(input: {
   model: TranscriptionModelId;
   promptTail?: string;
 }): Promise<string> {
-  const groq = getGroqClient();
+  const openai = getOpenAiClient();
   const bytes = Buffer.from(await input.audio.arrayBuffer());
 
   if (bytes.length === 0) {
@@ -27,12 +27,11 @@ export async function transcribeAudio(input: {
   });
 
   try {
-    const result = await groq.audio.transcriptions.create(
+    const result = await openai.audio.transcriptions.create(
       {
         file,
         model: input.model,
         language: AI_CONFIG.whisperLanguage,
-        temperature: 0,
         response_format: "json",
         prompt: prompt.slice(0, 800),
       },

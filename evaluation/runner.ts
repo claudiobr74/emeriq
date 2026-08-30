@@ -2,8 +2,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { AI_CONFIG } from "../src/config/ai";
 import { createEmptyClinicalState } from "../src/lib/clinical/clinical-state";
-import { getGroqApiKey } from "../src/lib/env";
-import { clinicalAIProvider } from "../src/lib/groq/clinical";
+import { getOpenAiApiKey } from "../src/lib/env";
+import { clinicalAIProvider } from "../src/lib/openai/clinical";
 import { CLINICAL_PROMPT_VERSION } from "../src/lib/clinical/prompts/version";
 import { AppError, isRetryableClinicalError } from "../src/lib/errors";
 import type { ClinicalState } from "../src/lib/clinical/schemas";
@@ -110,10 +110,10 @@ function buildReport(scores: CaseScore[]): EvaluationReport {
 
   return {
     generatedAt: new Date().toISOString(),
-    provider: "groq",
+    provider: "openai",
     model: AI_CONFIG.clinicalModel,
     promptVersion: CLINICAL_PROMPT_VERSION,
-    reasoningLevel: AI_CONFIG.reasoning.update,
+    temperature: AI_CONFIG.temperature.update,
     totals: {
       cases: scores.length,
       pass,
@@ -161,7 +161,7 @@ export function writeReports(report: EvaluationReport) {
     `- Provider: ${next.provider}`,
     `- Model: ${next.model}`,
     `- Prompt: ${next.promptVersion}`,
-    `- Reasoning: ${next.reasoningLevel}`,
+    `- Temperature: ${next.temperature}`,
     "",
     `PASS ${next.totals.pass} / FAIL ${next.totals.fail} / mean ${next.totals.meanScore}`,
     "",
@@ -177,8 +177,8 @@ export function writeReports(report: EvaluationReport) {
 }
 
 export async function runClinicalEvaluation(): Promise<EvaluationReport> {
-  if (!getGroqApiKey()) {
-    throw new Error("GROQ_API_KEY ausente. Defina no ambiente para pnpm eval:clinical.");
+  if (!getOpenAiApiKey()) {
+    throw new Error("OPENAI_API_KEY ausente. Defina no ambiente para pnpm eval:clinical.");
   }
 
   const scores: CaseScore[] = [];

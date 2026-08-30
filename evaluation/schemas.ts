@@ -36,7 +36,7 @@ export interface EvaluationReport {
   provider: string;
   model: string;
   promptVersion: string;
-  reasoningLevel: string;
+  temperature: number;
   totals: {
     cases: number;
     pass: number;

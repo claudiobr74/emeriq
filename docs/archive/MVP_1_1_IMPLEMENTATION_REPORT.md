@@ -1,3 +1,5 @@
+> **HISTORICAL DOCUMENT — NOT CURRENT ARCHITECTURE.** Refere-se ao MVP 1.1 (provider Groq/gpt-oss), superado. Para a arquitetura vigente, ver `ARCHITECTURE.md`.
+
 # Relatório de implementação — PS Assist 1.1
 
 Data: 2026-08-29  

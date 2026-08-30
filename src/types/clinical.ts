@@ -32,11 +32,8 @@ export type DisplayStatus =
 
 export type TranscriptionChoice = "standard" | "turbo";
 
-export type AnalysisPace = "fast" | "balanced" | "economical";
-
 export interface AppSettings {
   transcription: TranscriptionChoice;
-  analysisPace: AnalysisPace;
   showQuestions: boolean;
   showHypotheses: boolean;
   showAlerts: boolean;
@@ -46,7 +43,6 @@ export interface AppSettings {
 
 export const DEFAULT_SETTINGS: AppSettings = {
   transcription: "standard",
-  analysisPace: "balanced",
   showQuestions: true,
   showHypotheses: true,
   showAlerts: true,

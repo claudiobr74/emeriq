@@ -1,29 +1,27 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
+import { ThemeScript } from "@/components/theme/ThemeScript";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "PS Assist",
-  description: "Assistente clínica em tempo real para pronto-socorro",
+  title: "EmerIQ — Assistente Clínica de Pronto-Socorro",
+  description:
+    "EmerIQ: assistente clínica em tempo real para pronto-socorro. Ouve, transcreve, organiza o raciocínio e documenta o SOAP.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="pt-BR"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full bg-slate-100 font-sans text-slate-900">
+    <html lang="pt-BR" suppressHydrationWarning className={inter.variable}>
+      <head>
+        <ThemeScript />
+      </head>
+      <body className="min-h-dvh bg-bg font-sans text-text antialiased">
         {children}
       </body>
     </html>

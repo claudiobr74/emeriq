@@ -12,6 +12,8 @@ interface UseAudioRecorderOptions {
   chunkDurationMs?: number;
   overlapMs?: number;
   onChunk: (blob: Blob) => void;
+  /** Frame PCM bruto (Float32) + taxa de origem — usado pelo transporte Realtime. */
+  onPcmFrame?: (frame: Float32Array, sourceRate: number) => void;
   onError?: (message: string) => void;
 }
 
@@ -26,6 +28,7 @@ export function useAudioRecorder({
   chunkDurationMs = AI_CONFIG.chunkDurationMs,
   overlapMs = AI_CONFIG.chunkOverlapMs,
   onChunk,
+  onPcmFrame,
   onError,
 }: UseAudioRecorderOptions) {
   const [status, setStatus] = useState<RecorderStatus>("idle");
@@ -40,10 +43,12 @@ export function useAudioRecorder({
   const hasEmittedRef = useRef(false);
   const sourceRateRef = useRef<number>(AI_CONFIG.sampleRate);
   const onChunkRef = useRef(onChunk);
+  const onPcmFrameRef = useRef(onPcmFrame);
   const onErrorRef = useRef(onError);
 
   useEffect(() => {
     onChunkRef.current = onChunk;
+    onPcmFrameRef.current = onPcmFrame;
     onErrorRef.current = onError;
   });
 
@@ -68,6 +73,8 @@ export function useAudioRecorder({
       if (statusRef.current !== "recording") return;
 
       const sourceRate = sourceRateRef.current;
+      // Transporte Realtime: envia frames PCM contínuos.
+      onPcmFrameRef.current?.(input, sourceRate);
       pendingRef.current = concatFloat32(pendingRef.current, input);
 
       const chunkSamples = Math.round((chunkDurationMs / 1000) * sourceRate);
