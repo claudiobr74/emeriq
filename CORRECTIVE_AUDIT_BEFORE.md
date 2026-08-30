@@ -1,3 +1,5 @@
+> **HISTORICAL SNAPSHOT — FASE 1.** Estado do repositório *antes* da rodada corretiva. Não é a arquitetura vigente. Ver `ARCHITECTURE.md` e `EMERIQ_CORRECTIVE_REPORT.md`.
+
 # CORRECTIVE_AUDIT_BEFORE
 
 Estado do repositório **antes** da rodada corretiva (FASE 1). Base para as

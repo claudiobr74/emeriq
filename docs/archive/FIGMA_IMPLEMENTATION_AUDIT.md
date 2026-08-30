@@ -1,7 +1,8 @@
+> **HISTORICAL DOCUMENT — NOT CURRENT ARCHITECTURE.** Auditoria da rodada design-to-code. Para a arquitetura vigente, ver `ARCHITECTURE.md`.
+
 # FIGMA_IMPLEMENTATION_AUDIT
 
-> Para a **arquitetura de IA vigente**, consulte `ARCHITECTURE.md` (OpenAI only).
-> Este documento cobre a rodada de design-to-code; menções a Groq são históricas.
+> Arquivado em `docs/archive/`. Menções a Groq e a chunks REST como transporte principal estão superadas.
 
 Auditoria pré-implementação da migração design-to-code do EmerIQ (PS Assist),
 a partir do arquivo Figma oficial `EmerIQ — Clinical Assistant MVP`

@@ -53,3 +53,6 @@ FR, Temperatura, **Glasgow** e Glicemia.
 Groq, Web Speech API, banco de dados, autenticação de usuários, Supabase/Nhost/Redis,
 RAG, agentes, dashboard, prontuário/pacientes/agenda, FHIR/HL7. Ver limites em
 `DEPLOYMENT_SECURITY.md`.
+
+Documentos históricos (não operacionais) estão em `docs/archive/` e em
+`CORRECTIVE_AUDIT_BEFORE.md`. O relatório desta rodada é `EMERIQ_CORRECTIVE_REPORT.md`.

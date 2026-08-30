@@ -1,7 +1,8 @@
+> **HISTORICAL DOCUMENT — NOT CURRENT ARCHITECTURE.** Relatório da rodada design-to-code. Para a arquitetura vigente, ver `ARCHITECTURE.md`.
+
 # FIGMA_IMPLEMENTATION_REPORT
 
-> Para a **arquitetura de IA vigente**, consulte `ARCHITECTURE.md` (OpenAI only).
-> Este documento cobre a rodada de design-to-code.
+> Arquivado em `docs/archive/`. Transporte Realtime e Glasgow + glicemia estão documentados em `ARCHITECTURE.md` e `EMERIQ_CORRECTIVE_REPORT.md`.
 
 Relatório da migração design-to-code do EmerIQ: o MVP funcional passou a
 refletir o design oficial do Figma, preservando toda a lógica clínica e o
