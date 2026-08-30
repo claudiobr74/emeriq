@@ -90,5 +90,10 @@ export function parseVitalInput(
   if (trimmed === "") return null;
   if (field === "bloodPressure") return trimmed;
   const numeric = Number(trimmed.replace(",", "."));
-  return Number.isFinite(numeric) ? numeric : null;
+  if (!Number.isFinite(numeric)) return null;
+  if (field === "glasgow") {
+    const score = Math.round(numeric);
+    return score >= 3 && score <= 15 ? score : null;
+  }
+  return numeric;
 }

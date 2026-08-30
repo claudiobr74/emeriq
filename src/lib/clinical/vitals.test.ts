@@ -46,5 +46,8 @@ describe("vital signs: Glasgow + Glicemia", () => {
     expect(parseVitalInput("glasgow", "15")).toBe(15);
     expect(parseVitalInput("glucose", "92")).toBe(92);
     expect(parseVitalInput("glasgow", "")).toBeNull();
+    expect(parseVitalInput("glasgow", "2")).toBeNull();
+    expect(parseVitalInput("glasgow", "16")).toBeNull();
+    expect(parseVitalInput("glasgow", "8")).toBe(8);
   });
 });

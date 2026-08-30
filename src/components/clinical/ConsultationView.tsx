@@ -101,9 +101,9 @@ export function ConsultationView(props: ConsultationViewProps) {
       {banners}
 
       {/* Tablet (>=640) e Desktop (>=1024): workspace de duas colunas.
-          Tablet ~50/50; Desktop assimétrico 55/45 (transcrição/assistente). */}
+          Desktop: 709/659 (node Figma 5:82). Tablet: duas colunas iguais. */}
       <div className="hidden min-h-0 flex-1 flex-col sm:flex">
-        <div className="grid min-h-0 flex-1 grid-cols-2 gap-6 p-6 lg:grid-cols-[55fr_45fr]">
+        <div className="grid min-h-0 flex-1 grid-cols-2 gap-6 p-6 lg:grid-cols-[709fr_659fr]">
           <TranscriptPanel
             transcript={confirmedTranscript}
             partial={partialTranscript}

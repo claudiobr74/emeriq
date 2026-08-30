@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  acceptedAudioSequence,
   allSegmentsSettled,
   hasFailedSegments,
   initialTranscriptionState,
@@ -119,6 +120,33 @@ describe("transcription reducer", () => {
     ]);
     expect(state.partial).toBe("segundo");
     expect(state.partialItemId).toBe("item-2");
+  });
+
+  it("status changes (pause/reconnect) do not wipe confirmed or sequence", () => {
+    const started = run([
+      { type: "audioAccepted", id: "1" },
+      { type: "completed", id: "1", text: "Dor torácica há quarenta minutos." },
+    ]);
+    const paused = transcriptionReducer(started, {
+      type: "status",
+      status: "disconnected",
+    });
+    const resumed = transcriptionReducer(paused, {
+      type: "status",
+      status: "listening",
+    });
+    expect(resumed.confirmed).toBe("Dor torácica há quarenta minutos.");
+    expect(acceptedAudioSequence(resumed).map((s) => s.id)).toEqual(["1"]);
+  });
+
+  it("failed pending segment is recorded and finalize can still settle", () => {
+    const state = run([
+      { type: "audioAccepted", id: "N" },
+      { type: "failed", id: "N" },
+    ]);
+    expect(hasFailedSegments(state)).toBe(true);
+    expect(allSegmentsSettled(state)).toBe(true);
+    expect(acceptedAudioSequence(state)[0]?.status).toBe("failed");
   });
 
   it("reset clears everything", () => {

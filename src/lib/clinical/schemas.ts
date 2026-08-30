@@ -56,7 +56,7 @@ export const vitalSignsSchema = z.object({
   respiratoryRate: z.number().nullable(),
   oxygenSaturation: z.number().nullable(),
   temperature: z.number().nullable(),
-  glasgow: z.number().nullable().default(null),
+  glasgow: z.number().min(3).max(15).nullable().default(null),
   glucose: z.number().nullable(),
 });
 

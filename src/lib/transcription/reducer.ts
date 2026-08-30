@@ -120,6 +120,13 @@ export function transcriptionReducer(
   }
 }
 
+/** Sequência de áudio aceita (acceptedAudioSequence): ordem de segmentos. */
+export function acceptedAudioSequence(
+  state: TranscriptionState,
+): AudioSegment[] {
+  return state.segments;
+}
+
 /** Segmentos ainda pendentes (não confirmados nem falhos). */
 export function pendingSegments(state: TranscriptionState): AudioSegment[] {
   return state.segments.filter((s) => s.status === "pending");

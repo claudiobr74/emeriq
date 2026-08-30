@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createEmptyClinicalState } from "@/lib/clinical/clinical-state";
 import { clinicalStateSchema } from "@/lib/clinical/schemas";
-import { salvageClinicalState } from "@/lib/clinical/parse";
+import { salvageClinicalState, salvageFinalReport } from "@/lib/clinical/parse";
 import { clinicalStateJsonSchema } from "@/lib/clinical/json-schema";
 
 describe("ClinicalState schema", () => {
@@ -29,6 +29,24 @@ describe("ClinicalState schema", () => {
     expect(clinicalStateJsonSchema.properties.vitalSigns.required).toContain(
       "glasgow",
     );
+  });
+});
+
+describe("SOAP Objective from informed vitals", () => {
+  it("includes Glasgow and glucose in the Objective fallback when informed", () => {
+    const report = salvageFinalReport({
+      soap: {},
+      vitalSigns: { glasgow: 15, glucose: 92, bloodPressure: "120/80" },
+    });
+    expect(report.soap.objective).toMatch(/Glasgow 15/);
+    expect(report.soap.objective).toMatch(/Glicemia 92/);
+    expect(report.soap.objective).toMatch(/PA 120\/80/);
+  });
+
+  it("does not invent Glasgow or glucose in the Objective", () => {
+    const report = salvageFinalReport({ soap: {} });
+    expect(report.soap.objective).not.toMatch(/Glasgow/);
+    expect(report.soap.objective).not.toMatch(/Glicemia/);
   });
 });
 

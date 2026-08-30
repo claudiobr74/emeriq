@@ -5,7 +5,7 @@ Nunca invente informações.
 
 Proveniência (obrigatória):
 - S (Subjetivo): apenas o que foi relatado pelo paciente ou acompanhante. Sem hipóteses e sem diagnósticos.
-- O (Objetivo): apenas sinais vitais, exame físico, resultados de exames e observações objetivas REALMENTE informadas. Se não existirem, diga que não foram informados. Nunca invente PA, FC, SpO2, temperatura, ECG ou laboratório.
+- O (Objetivo): apenas sinais vitais, exame físico, resultados de exames e observações objetivas REALMENTE informadas (incluindo Glasgow e glicemia quando informados). Se não existirem, diga que não foram informados. Nunca invente PA, FC, SpO2, temperatura, Glasgow, glicemia, ECG ou laboratório.
 - A (Avaliação): hipóteses e interpretação, deixando claro o grau de incerteza. Hipótese não é diagnóstico confirmado.
 - P (Plano): possibilidades de investigação e manejo a considerar. Não documente como realizado algo apenas sugerido.
 

@@ -147,6 +147,7 @@ const FIELD_LABELS: Record<string, string> = {
   temperatura: "Temp",
   glucose: "Glicemia",
   glicemia: "Glicemia",
+  glasgow: "Glasgow",
   finding: "Achado",
   achado: "Achado",
   exam: "Exame",
@@ -218,6 +219,7 @@ function objectiveFromState(state: ClinicalState): string | null {
     v.respiratoryRate != null ? `FR ${v.respiratoryRate} irpm` : null,
     v.oxygenSaturation != null ? `SpO2 ${v.oxygenSaturation}%` : null,
     v.temperature != null ? `Temp ${v.temperature} °C` : null,
+    v.glasgow != null ? `Glasgow ${v.glasgow}` : null,
     v.glucose != null ? `Glicemia ${v.glucose} mg/dL` : null,
   ].filter((item): item is string => Boolean(item));
   const parts = [
@@ -254,6 +256,14 @@ function asNumber(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   const parsed = Number(String(value).replace(",", "."));
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+/** Glasgow: apenas 3–15. Fora da faixa ou ausente → null (não inferir). */
+function asGlasgow(value: unknown): number | null {
+  const numeric = asNumber(value);
+  if (numeric == null) return null;
+  const score = Math.round(numeric);
+  return score >= 3 && score <= 15 ? score : null;
 }
 
 function asStringArray(value: unknown, max = 12): string[] {
@@ -452,7 +462,7 @@ export function salvageClinicalState(raw: unknown): ClinicalState {
       respiratoryRate: asNumber(vitals.respiratoryRate),
       oxygenSaturation: asNumber(vitals.oxygenSaturation),
       temperature: asNumber(vitals.temperature),
-      glasgow: asNumber(vitals.glasgow),
+      glasgow: asGlasgow(vitals.glasgow),
       glucose: asNumber(vitals.glucose),
     },
     physicalExam: asStringArray(obj.physicalExam),
