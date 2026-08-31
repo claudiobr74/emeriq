@@ -8,11 +8,8 @@ import { Logo } from "@/components/brand/Logo";
 import { useAuth } from "@/hooks/useAuth";
 import type { LayoutMode } from "@/hooks/useLayoutMode";
 import type { LoginStatus } from "@/lib/auth/types";
-
-const loginSchema = z.object({
-  email: z.email(),
-  password: z.string().min(1),
-});
+import { formatLoginError } from "@/lib/auth/login-error";
+import { loginBodySchema } from "@/lib/auth/login-schema";
 
 const COPY = {
   desktop: {
@@ -123,6 +120,9 @@ function LoginForm({
             type="email"
             name={`email-${layout}`}
             autoComplete="username"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
             inputMode="email"
             placeholder={copy.emailPlaceholder}
             value={email}
@@ -238,7 +238,7 @@ export function LoginScreen() {
     event.preventDefault();
     setEmailError(false);
     setPasswordError(false);
-    const parsed = loginSchema.safeParse({ email: email.trim(), password });
+    const parsed = loginBodySchema.safeParse({ email: email.trim(), password });
     if (!parsed.success) {
       setEmailError(!email.trim() || emailInvalid(email));
       setPasswordError(!password);
@@ -251,7 +251,9 @@ export function LoginScreen() {
     const result = await login(parsed.data.email, parsed.data.password);
     if (!result.ok) {
       setStatus(result.code);
-      setError(result.message);
+      setError(
+        formatLoginError(result.code, result.message, result.retryAfterSeconds),
+      );
       return;
     }
     setStatus("success");

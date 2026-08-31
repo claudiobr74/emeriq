@@ -21,15 +21,24 @@ export function useAuth(initialUser: AuthUser | null = null) {
         user?: AuthUser;
         error?: string;
         code?: LoginFailureCode;
+        retryAfterSeconds?: number;
       } | null;
       if (!response.ok || !payload?.user) {
+        const headerRetry = Number(response.headers.get("retry-after"));
+        const retryAfterSeconds =
+          payload?.retryAfterSeconds ??
+          (Number.isFinite(headerRetry) && headerRetry > 0
+            ? headerRetry
+            : undefined);
         return {
           ok: false as const,
           code: (payload?.code ??
             (response.status === 429
               ? "rate_limited"
               : "unknown_error")) as LoginFailureCode,
-          message: payload?.error ?? "Não foi possível entrar agora. Tente novamente.",
+          message:
+            payload?.error ?? "Não foi possível entrar agora. Tente novamente.",
+          retryAfterSeconds,
         };
       }
       setUser(payload.user);

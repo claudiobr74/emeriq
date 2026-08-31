@@ -4,6 +4,12 @@ import { createSessionClient } from "@/lib/appwrite/session";
 import { AppError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import type { LoginFailureCode } from "@/lib/auth/types";
+import {
+  getAppwriteAdminApiKey,
+  getAppwriteEndpoint,
+  getAppwriteProjectId,
+} from "@/lib/env";
+import { sessionTokenFromFallbackCookies } from "@/lib/appwrite/fallback-session";
 
 export interface CreatedSession {
   secret: string;
@@ -80,23 +86,85 @@ export async function createEmailPasswordSession(input: {
   email: string;
   password: string;
 }): Promise<CreatedSession> {
-  const account = createAdminAccount();
-  const session = await account.createEmailPasswordSession({
-    email: input.email,
-    password: input.password,
+  if (getAppwriteAdminApiKey()) {
+    const account = createAdminAccount();
+    const session = await account.createEmailPasswordSession({
+      email: input.email,
+      password: input.password,
+    });
+    if (session.secret) {
+      return {
+        secret: session.secret,
+        expire: session.expire,
+        userId: session.userId,
+      };
+    }
+    logger.error("session.secret empty — admin key may lack sessions.write; trying public session");
+  }
+
+  return createPublicEmailPasswordSession(input);
+}
+
+/**
+ * Login sem API key (previews Vercel sem APPWRITE_ADMIN_API_KEY).
+ * O JSON não traz `secret`; o token vem em `X-Fallback-Cookies`.
+ */
+async function createPublicEmailPasswordSession(input: {
+  email: string;
+  password: string;
+}): Promise<CreatedSession> {
+  const endpoint = getAppwriteEndpoint();
+  const projectId = getAppwriteProjectId();
+  if (!endpoint || !projectId) {
+    throw new AppError("Appwrite não configurado.", "appwrite_not_configured", 503);
+  }
+
+  const response = await fetch(`${endpoint}/account/sessions/email`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "X-Appwrite-Project": projectId,
+    },
+    body: JSON.stringify({ email: input.email, password: input.password }),
   });
-  if (!session.secret) {
-    logger.error("session.secret empty — admin key needs sessions.write");
+
+  const payload = (await response.json().catch(() => null)) as {
+    message?: string;
+    type?: string;
+    code?: number;
+    secret?: string;
+    expire?: string;
+    userId?: string;
+  } | null;
+
+  if (!response.ok) {
+    throw new AppwriteException(
+      payload?.message ?? "Login recusado.",
+      response.status,
+      payload?.type ?? "",
+    );
+  }
+
+  const secret =
+    payload?.secret ||
+    sessionTokenFromFallbackCookies(
+      response.headers.get("x-fallback-cookies"),
+      projectId,
+    );
+  if (!secret || !payload?.userId) {
+    logger.error("public session missing secret or userId");
     throw new AppError(
       "Não foi possível entrar agora. Tente novamente.",
       "session_secret_missing",
       503,
     );
   }
+
   return {
-    secret: session.secret,
-    expire: session.expire,
-    userId: session.userId,
+    secret,
+    expire: payload.expire ?? "",
+    userId: payload.userId,
   };
 }
 
