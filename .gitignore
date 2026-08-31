@@ -43,4 +43,10 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
-next-env.d.ts
+evaluation/reports/*.json
+evaluation/reports/*.md
+!evaluation/reports/.gitkeep
+
+# Next.js auto-generated agent rules
+/AGENTS.md
+/CLAUDE.md

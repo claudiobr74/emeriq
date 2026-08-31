@@ -65,3 +65,20 @@ export function encodeWav(samples: Float32Array, sampleRate: number): Blob {
 export function samplesForDuration(durationMs: number, sampleRate = AI_CONFIG.sampleRate) {
   return Math.round((durationMs / 1000) * sampleRate);
 }
+
+/** Float32 [-1,1] → PCM16 little-endian base64 (formato do Realtime input). */
+export function floatToPcm16Base64(samples: Float32Array): string {
+  const buffer = new ArrayBuffer(samples.length * 2);
+  const view = new DataView(buffer);
+  for (let i = 0; i < samples.length; i += 1) {
+    const s = Math.max(-1, Math.min(1, samples[i]!));
+    view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+  }
+  let binary = "";
+  const bytes = new Uint8Array(buffer);
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}

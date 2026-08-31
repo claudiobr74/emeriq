@@ -1,0 +1,68 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { clinicalStateSchema, finalClinicalReportSchema } from "@/lib/clinical/schemas";
+import {
+  createConsultationForUser,
+  consultationStatusSchema,
+  appwriteReady,
+} from "@/lib/appwrite/consultations";
+import { requireUser } from "@/lib/appwrite/session";
+import {
+  ensureJsonContentType,
+  ensureSameOrigin,
+  errorResponse,
+  readJsonLimited,
+} from "@/lib/http";
+import { AppError } from "@/lib/errors";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+const createBodySchema = z.object({
+  transcript: z.string().optional(),
+  clinicalState: clinicalStateSchema.optional(),
+  soap: finalClinicalReportSchema.nullable().optional(),
+  status: consultationStatusSchema.optional(),
+  finalizeWarning: z.string().nullable().optional(),
+  ownerUserId: z.string().optional(),
+  owner_user_id: z.string().optional(),
+});
+
+export async function POST(request: Request) {
+  try {
+    ensureSameOrigin(request);
+    ensureJsonContentType(request);
+    const user = await requireUser();
+    if (!appwriteReady()) {
+      throw new AppError("Appwrite não configurado.", "appwrite_not_configured", 503);
+    }
+    const body = await readJsonLimited(request);
+    const parsed = createBodySchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Payload de atendimento inválido.", code: "invalid_payload" },
+        { status: 400 },
+      );
+    }
+    const safe = {
+      transcript: parsed.data.transcript,
+      clinicalState: parsed.data.clinicalState,
+      soap: parsed.data.soap,
+      status: parsed.data.status,
+      finalizeWarning: parsed.data.finalizeWarning,
+    };
+    const row = await createConsultationForUser(user.id, {
+      transcript: safe.transcript,
+      clinicalState: safe.clinicalState,
+      soap: safe.soap,
+      status: safe.status,
+      finalizeWarning: safe.finalizeWarning,
+    });
+    return NextResponse.json(row, { status: 201 });
+  } catch (error) {
+    return errorResponse(error, {
+      message: "Falha ao criar o atendimento.",
+      code: "consultation_create_failed",
+    });
+  }
+}

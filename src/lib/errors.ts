@@ -3,9 +3,24 @@ export class AppError extends Error {
     message: string,
     public readonly code: string,
     public readonly status = 500,
+    public readonly retryAfterMs?: number,
   ) {
     super(message);
     this.name = "AppError";
+  }
+}
+
+export class UnauthorizedError extends AppError {
+  constructor(message = "Não autenticado.") {
+    super(message, "unauthorized", 401);
+    this.name = "UnauthorizedError";
+  }
+}
+
+export class ForbiddenError extends AppError {
+  constructor(message = "Não foi possível carregar o atendimento.") {
+    super(message, "forbidden", 404);
+    this.name = "ForbiddenError";
   }
 }
 
@@ -26,7 +41,7 @@ export function microphoneErrorMessage(error: unknown): string {
 
 export function apiErrorMessage(status: number, fallback: string): string {
   if (status === 401 || status === 403) {
-    return "Falha de autenticação com o serviço de IA. Verifique a chave GROQ_API_KEY.";
+    return "Falha de autenticação com o serviço de IA. Verifique a chave OPENAI_API_KEY.";
   }
   if (status === 429) {
     return "Limite de uso do serviço de IA atingido. A gravação continua.";
@@ -35,4 +50,38 @@ export function apiErrorMessage(status: number, fallback: string): string {
     return "Serviço de IA temporariamente indisponível.";
   }
   return fallback;
+}
+
+export function isRetryableClinicalError(error: unknown): boolean {
+  if (error instanceof AppError && error.retryAfterMs != null) return true;
+  const message = error instanceof Error ? error.message : String(error);
+  if (/Request too large|payload too|413/i.test(message)) return false;
+  return /429|rate.?limit|limite de uso|timeout|ETIMEDOUT|ECONNRESET|503|temporariamente|too many/i.test(
+    message,
+  );
+}
+
+export function openAiRetryAfterMs(error: unknown): number | undefined {
+  const headers = (error as { headers?: Headers | Record<string, string> }).headers;
+  const headerValue =
+    headers instanceof Headers
+      ? headers.get("retry-after")
+      : headers && typeof headers === "object"
+        ? (headers["retry-after"] ?? headers["Retry-After"])
+        : undefined;
+  if (typeof headerValue === "string" && /^\d+(\.\d+)?$/.test(headerValue.trim())) {
+    return Math.max(1_000, Math.ceil(Number(headerValue) * 1000));
+  }
+
+  const raw = error instanceof Error ? error.message : String(error);
+  const combo = raw.match(/try again in (?:(\d+)m)?\s*([\d.]+)s/i);
+  if (combo) {
+    const minutes = Number(combo[1] ?? 0);
+    const seconds = Number(combo[2] ?? 0);
+    return Math.max(1_000, Math.ceil((minutes * 60 + seconds) * 1000));
+  }
+
+  const status = (error as { status?: number }).status;
+  if (status === 429 || /rate_limit_exceeded/i.test(raw)) return 65_000;
+  return undefined;
 }
