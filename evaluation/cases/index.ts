@@ -1,4 +1,5 @@
 import type { ClinicalEvaluationCase } from "../schemas";
+import { V13_ADVERSARIAL_CASES } from "./v13-adversarial";
 
 export const CLINICAL_CASES: ClinicalEvaluationCase[] = [
   {
@@ -478,4 +479,5 @@ export const CLINICAL_CASES: ClinicalEvaluationCase[] = [
     },
     forbidden: { fabricatedFacts: ["ECG realizado"] },
   },
+  ...V13_ADVERSARIAL_CASES,
 ];

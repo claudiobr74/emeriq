@@ -45,6 +45,7 @@ yarn-error.log*
 *.tsbuildinfo
 evaluation/reports/*.json
 evaluation/reports/*.md
+evaluation/reports/dumps/
 !evaluation/reports/.gitkeep
 !evaluation/reports/failure-analysis-v1.3.md
 !evaluation/reports/v1.3-before-after.md

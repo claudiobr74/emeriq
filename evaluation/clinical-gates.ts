@@ -116,17 +116,15 @@ export function formatClinicalGateReport(report: ClinicalQualityGateReport): str
     report.disclaimer,
     "",
     ...report.results.map((item) => {
-      const actualPct =
-        item.name.toLowerCase().includes("rate") || item.name.toLowerCase().includes("recall") || item.name.toLowerCase().includes("fidelity")
-          ? `${Math.round(item.actual * 1000) / 10}%`
-          : String(item.actual);
-      const requiredLabel =
-        item.comparator === ">="
-          ? `>= ${item.required}`
-          : item.comparator === "<="
-            ? `<= ${item.required}`
-            : `== ${item.required}`;
-      return `${item.name}:\n${actualPct}\nRequired:\n${requiredLabel}\n${item.pass ? "PASS" : "FAILED"}`;
+      const asPct = (value: number) => `${Math.round(value * 1000) / 10}%`;
+      const isRatio =
+        item.name.toLowerCase().includes("rate") ||
+        item.name.toLowerCase().includes("recall") ||
+        item.name.toLowerCase().includes("fidelity");
+      const actualLabel = isRatio ? asPct(item.actual) : String(item.actual);
+      const requiredValue = isRatio ? asPct(item.required) : String(item.required);
+      const requiredLabel = `${item.comparator} ${requiredValue}`;
+      return `${item.name}:\n${actualLabel}\nRequired:\n${requiredLabel}\n${item.pass ? "PASS" : "FAILED"}`;
     }),
     "",
     "OVERALL:",
