@@ -133,7 +133,7 @@ Appwrite real **não** é chamado nos unitários (adapter mockado).
 | `pnpm lint` | pass (0 errors) |
 | `pnpm typecheck` | pass |
 | `pnpm test` | pass — 36 files, 144 tests |
-| `pnpm eval:clinical` | pass (exit 0) — 35 cases, 28 PASS / 7 FAIL, mean 91.5; o CLI só falha se **todos** os casos falham |
+| `pnpm eval:clinical` | pass (exit 0) — 35 cases, 26 PASS / 9 FAIL, mean 89.3; o CLI só falha se **todos** os casos falham |
 | `pnpm build` | pass — Next.js 16.3.3, Proxy (Middleware) ativo, rotas `/login` e `/api/auth/*` |
 
 E2E (API, Appwrite real): login inválido 401 com mensagem segura; login válido define cookie HttpOnly; `ownerUserId` do client ignorado; 409 na segunda consulta `active`; GET/PATCH/DELETE cross-user 404; logout zera a sessão.
@@ -142,7 +142,7 @@ E2E (UI): `/` sem cookie → login Figma desktop; credenciais inválidas mostram
 
 ## Eval results
 
-Harness OpenAI `gpt-4o-mini` (não é regressão de auth). SOAP fidelity 100%. Falhas pontuais: alucinação “intervenção sugerida como realizada” e 2 misses de mustNotMiss (tbi-01, chest-trauma-01). Variância do modelo clínico; fora do escopo desta rodada.
+Harness OpenAI `gpt-4o-mini` (não é regressão de auth). SOAP fidelity 100%. Falhas pontuais: alucinação “intervenção sugerida como realizada” e misses de mustNotMiss. Variância do modelo clínico; fora do escopo desta rodada. Reexecução nesta rodada: mean 89.3 (26/35 PASS); execução anterior: mean 91.5 (28/35 PASS).
 
 ## Known limitations
 
