@@ -25,4 +25,15 @@ describe("login schema", () => {
     });
     expect(parsed.success).toBe(false);
   });
+
+  it("normalizes email case and surrounding space", () => {
+    const parsed = loginBodySchema.safeParse({
+      email: "  Ana@Hospital.ORG ",
+      password: "secret",
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.email).toBe("ana@hospital.org");
+    }
+  });
 });

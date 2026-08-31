@@ -1,12 +1,17 @@
 import { z } from "zod";
 
+const emailSchema = z
+  .string()
+  .transform((value) => value.trim().toLowerCase())
+  .pipe(z.email());
+
 export const loginBodySchema = z.object({
-  email: z.email(),
+  email: emailSchema,
   password: z.string().min(1),
 });
 
 export const recoverBodySchema = z.object({
-  email: z.email(),
+  email: emailSchema,
 });
 
 export const recoverConfirmBodySchema = z.object({
