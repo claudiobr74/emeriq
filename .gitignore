@@ -61,6 +61,7 @@ evaluation/blind/results/*.md
 !evaluation/blind/results/FIRST_RUN_FAILURE_ANALYSIS.md
 !evaluation/blind/results/STABILITY_RUN.json
 !evaluation/blind/results/STABILITY_RUN.md
+!evaluation/blind/results/STABILITY_SUMMARY.md
 
 # Next.js auto-generated agent rules
 /AGENTS.md

@@ -104,9 +104,26 @@ Ver `BLIND_CLINICAL_CHALLENGE_FIRST_RUN.md`.
 
 ## Stability Results
 
-Subset crítico do holdout (30 × 3) em execução / ver `evaluation/blind/results/STABILITY_RUN.md` quando existir.
+30 casos `critical` × 3 = 90 avaliações. `STABILITY_RUN` `2026-08-31T14:01:30Z`.
 
-Critério pré-definido: 100% dos mustNotMiss ≥2/3 e ≥95% 3/3; qualquer critical hallucination = FAIL.
+| Critério pré-definido | Obtido | Gate |
+| --- | --- | --- |
+| 100% dos mustNotMiss ≥ 2/3 | 17/30 = 56.7% | FAILED |
+| ≥ 95% dos casos 3/3 | 15/30 = 50.0% | FAILED |
+| Critical hallucination em qualquer run | 0 | PASS |
+
+Critical Stability Rate (3/3): **50%**
+
+| Caso | Recall | Nota |
+| --- | --- | --- |
+| b-crit-01, 03, 05, 06, 08, 09, 10, 11, 16, 17, 19, 20, 22, 23, 30 | 3/3 | estável |
+| b-crit-12, 18 | 2/3 | UNSTABLE |
+| b-crit-04, 13, 15 | 1/3 | FAIL |
+| b-crit-02, 07, 14, 21, 24, 25, 26, 27, 28, 29 | 0/3 | FAIL |
+
+Famílias v1.3 (SCA clássica, TEP puerpério, sepse, anafilaxia, asma, HSA/AVC com déficit, meningite, CO) tendem a 3/3. Famílias **fora** da Safety v1.3 (tamponade, adrenal, fascite, epiglotite, PPH, AAA, status, DKA variável) 0/3 ou 1/3.
+
+0 hallucinações em 90 runs.
 
 ---
 
