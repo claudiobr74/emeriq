@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import type { AuthUser, LoginFailureCode } from "@/lib/auth/types";
 import { clearConsultationId } from "@/lib/consultations/browser";
+import { hardRedirectToLogin } from "@/lib/auth/hard-redirect";
 
 export function useAuth(initialUser: AuthUser | null = null) {
   const [user, setUser] = useState<AuthUser | null>(initialUser);
@@ -52,7 +53,7 @@ export function useAuth(initialUser: AuthUser | null = null) {
     }
     clearConsultationId();
     setUser(null);
-    window.location.href = `${window.location.origin}/login`;
+    hardRedirectToLogin();
   }, []);
 
   return {

@@ -47,7 +47,13 @@ afterEach(() => {
 
 describe("Appwrite consultations ownership", () => {
   it("creates a row owned by the authenticated user", async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+    const fetchMock = vi.fn<
+      (input: RequestInfo | URL, init?: RequestInit) => Promise<{
+        ok: boolean;
+        status: number;
+        json: () => Promise<unknown>;
+      }>
+    >(async (input) => {
       const url = String(input);
       if (url.includes("queries")) {
         return {
@@ -66,11 +72,8 @@ describe("Appwrite consultations ownership", () => {
 
     const created = await createConsultationForUser("user-a", { status: "active" });
     expect(created.owner_user_id).toBe("user-a");
-    const post = fetchMock.mock.calls.find((call) => {
-      const init = call[1] as RequestInit | undefined;
-      return init?.method === "POST";
-    });
-    const body = JSON.parse(String((post?.[1] as RequestInit).body));
+    const post = fetchMock.mock.calls.find((call) => call[1]?.method === "POST");
+    const body = JSON.parse(String(post?.[1]?.body));
     expect(body.data.owner_user_id).toBe("user-a");
   });
 

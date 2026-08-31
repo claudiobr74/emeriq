@@ -164,6 +164,7 @@ async function main() {
         const patched = await req("PATCH", `${tablePath}/columns/enum/${key}`, {
           elements: STATUS_VALUES,
           required: true,
+          default: null,
         });
         if (patched.ok) {
           console.log("column status: enum atualizado");

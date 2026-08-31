@@ -37,7 +37,7 @@ export function ensureJsonContentType(request: Request): void {
 
 export async function readJsonLimited(
   request: Request,
-  maxBytes = BODY_LIMITS.jsonBytes,
+  maxBytes: number = BODY_LIMITS.jsonBytes,
 ): Promise<unknown> {
   const text = await request.text();
   if (text.length > maxBytes) {

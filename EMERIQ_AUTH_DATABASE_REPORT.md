@@ -126,11 +126,17 @@ Appwrite real **não** é chamado nos unitários (adapter mockado).
 
 ## Test results
 
-A preencher após `pnpm lint`, `typecheck`, `test`, `eval:clinical`, `build`.
+| Gate | Resultado |
+| --- | --- |
+| `pnpm lint` | pass (0 errors) |
+| `pnpm typecheck` | pass |
+| `pnpm test` | pass — 36 files, 144 tests |
+| `pnpm eval:clinical` | pass (exit 0) — 35 cases, 28 PASS / 7 FAIL, mean 91.5; o CLI só falha se **todos** os casos falham |
+| `pnpm build` | pass — Next.js 16.3.3, Proxy (Middleware) ativo, rotas `/login` e `/api/auth/*` |
 
 ## Eval results
 
-A preencher após `pnpm eval:clinical`.
+Harness OpenAI `gpt-4o-mini` (não é regressão de auth). SOAP fidelity 100%. Falhas pontuais: alucinação “intervenção sugerida como realizada” e 2 misses de mustNotMiss (tbi-01, chest-trauma-01). Variância do modelo clínico; fora do escopo desta rodada.
 
 ## Known limitations
 

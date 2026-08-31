@@ -1,4 +1,5 @@
 import type { ClinicalState, FinalClinicalReport } from "@/lib/clinical/schemas";
+import { hardRedirectToLogin } from "@/lib/auth/hard-redirect";
 
 export const CONSULTATION_STORAGE_KEY = "emeriq.consultationId";
 
@@ -39,7 +40,7 @@ export function clearConsultationId(): void {
 
 async function parseConsultation(response: Response): Promise<PersistedConsultation | null> {
   if (response.status === 401) {
-    window.location.href = `${window.location.origin}/login`;
+    hardRedirectToLogin();
     return null;
   }
   if (response.status === 503) return null;
@@ -68,7 +69,7 @@ export async function fetchActiveConsultation(): Promise<PersistedConsultation |
   try {
     const response = await fetch("/api/consultations/active", { method: "GET" });
     if (response.status === 401) {
-      window.location.href = `${window.location.origin}/login`;
+      hardRedirectToLogin();
       return null;
     }
     if (!response.ok) return null;
