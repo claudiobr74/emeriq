@@ -2,8 +2,15 @@
 
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { AI_CONFIG, type TranscriptionModelId } from "@/config/ai";
+import { downsample, encodeWav } from "@/lib/audio/wav";
+import { PcmRingBuffer } from "@/lib/audio/pcm-ring-buffer";
 import { apiErrorMessage } from "@/lib/errors";
 import { logger } from "@/lib/logger";
+import {
+  maxReconnectAttempts,
+  reconnectDelayMs,
+  shouldDegrade,
+} from "@/lib/transcription/reconnect-policy";
 import {
   allSegmentsSettled,
   hasFailedSegments,
@@ -18,7 +25,7 @@ interface UseTranscriptionOptions {
   getModel: () => TranscriptionModelId;
 }
 
-type Mode = "idle" | "realtime" | "degraded";
+type Mode = "idle" | "realtime" | "reconnecting" | "degraded";
 
 export function useTranscription({ getModel }: UseTranscriptionOptions) {
   const [state, dispatch] = useReducer(
@@ -36,9 +43,12 @@ export function useTranscription({ getModel }: UseTranscriptionOptions) {
   const engineRef = useRef<RealtimeTranscriber | null>(null);
   const modeRef = useRef<Mode>("idle");
   const reconnectAttemptsRef = useRef(0);
+  const reconnectTimerRef = useRef<number | null>(null);
   const pausedRef = useRef(false);
+  const ringRef = useRef(
+    new PcmRingBuffer(AI_CONFIG.realtime.sampleRate * AI_CONFIG.realtime.ringBufferSeconds),
+  );
 
-  // Fila REST (modo degradado)
   const queueRef = useRef<Blob[]>([]);
   const processingRef = useRef(false);
   const restSeqRef = useRef(0);
@@ -46,15 +56,6 @@ export function useTranscription({ getModel }: UseTranscriptionOptions) {
   useEffect(() => {
     getModelRef.current = getModel;
   });
-
-  const degrade = useCallback((reason: string) => {
-    if (modeRef.current === "degraded") return;
-    logger.transcription("degrading to REST", reason);
-    engineRef.current?.close();
-    engineRef.current = null;
-    modeRef.current = "degraded";
-    dispatch({ type: "status", status: "degraded" });
-  }, []);
 
   const processQueue = useCallback(async () => {
     if (processingRef.current) return;
@@ -114,9 +115,89 @@ export function useTranscription({ getModel }: UseTranscriptionOptions) {
     processingRef.current = false;
   }, []);
 
+  const enqueue = useCallback(
+    (blob: Blob) => {
+      if (modeRef.current !== "degraded") return;
+      queueRef.current.push(blob);
+      void processQueue();
+    },
+    [processQueue],
+  );
+
+  const flushRingToRest = useCallback(() => {
+    const drained = ringRef.current.drain();
+    if (drained.samples.length === 0 || drained.sampleRate <= 0) return;
+    const downsampled = downsample(
+      drained.samples,
+      drained.sampleRate,
+      AI_CONFIG.sampleRate,
+    );
+    enqueue(encodeWav(downsampled, AI_CONFIG.sampleRate));
+  }, [enqueue]);
+
+  const flushRingToEngine = useCallback((engine: RealtimeTranscriber) => {
+    const drained = ringRef.current.drain();
+    if (drained.samples.length === 0 || drained.sampleRate <= 0) return;
+    engine.pushPcm(drained.samples, drained.sampleRate);
+  }, []);
+
   const connectRef = useRef<() => Promise<boolean>>(() => Promise.resolve(false));
+  const scheduleReconnectRef = useRef<() => void>(() => undefined);
+
+  const degrade = useCallback(
+    (reason: string) => {
+      if (modeRef.current === "degraded") return;
+      logger.transcription("degrading to REST", reason);
+      if (reconnectTimerRef.current != null) {
+        window.clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+      engineRef.current?.close();
+      engineRef.current = null;
+      modeRef.current = "degraded";
+      dispatch({ type: "status", status: "degraded" });
+      flushRingToRest();
+    },
+    [flushRingToRest],
+  );
+
+  const scheduleReconnect = useCallback(() => {
+    if (pausedRef.current || modeRef.current === "degraded" || modeRef.current === "idle") {
+      return;
+    }
+    if (shouldDegrade(reconnectAttemptsRef.current)) {
+      dispatch({ type: "status", status: "failed" });
+      degrade("reconnect exhausted");
+      return;
+    }
+    const attempt = reconnectAttemptsRef.current;
+    const delay = reconnectDelayMs(attempt);
+    reconnectAttemptsRef.current = attempt + 1;
+    modeRef.current = "reconnecting";
+    dispatch({ type: "status", status: "reconnecting" });
+    logger.transcription("reconnect scheduled", {
+      attempt: attempt + 1,
+      max: maxReconnectAttempts(),
+      delay,
+    });
+    if (reconnectTimerRef.current != null) {
+      window.clearTimeout(reconnectTimerRef.current);
+    }
+    reconnectTimerRef.current = window.setTimeout(() => {
+      reconnectTimerRef.current = null;
+      void connectRef.current().then((ok) => {
+        if (!ok) scheduleReconnectRef.current();
+      });
+    }, delay);
+  }, [degrade]);
+
+  useEffect(() => {
+    scheduleReconnectRef.current = scheduleReconnect;
+  }, [scheduleReconnect]);
 
   const connectRealtime = useCallback(async (): Promise<boolean> => {
+    engineRef.current?.close();
+    engineRef.current = null;
     const engine = new RealtimeTranscriber({
       onStatus: (status: TranscriptionStatus) =>
         dispatch({ type: "status", status }),
@@ -124,22 +205,10 @@ export function useTranscription({ getModel }: UseTranscriptionOptions) {
       onDelta: (id, text) => dispatch({ type: "delta", id, text }),
       onCompleted: (id, text) => dispatch({ type: "completed", id, text }),
       onFailed: (id) => dispatch({ type: "failed", id }),
-      onFatal: (message) => {
-        if (pausedRef.current || modeRef.current !== "realtime") return;
-        const attempts = (reconnectAttemptsRef.current += 1);
-        if (attempts > AI_CONFIG.realtime.reconnect.maxAttempts) {
-          setError(message);
-          degrade("reconnect exhausted");
-          return;
-        }
-        dispatch({ type: "status", status: "reconnecting" });
-        const delay = Math.min(
-          AI_CONFIG.realtime.reconnect.baseDelayMs * 2 ** (attempts - 1),
-          AI_CONFIG.realtime.reconnect.maxDelayMs,
-        );
-        window.setTimeout(() => {
-          void connectRef.current();
-        }, delay);
+      onFatal: () => {
+        if (pausedRef.current) return;
+        if (modeRef.current !== "realtime") return;
+        scheduleReconnectRef.current();
       },
     });
     try {
@@ -147,13 +216,14 @@ export function useTranscription({ getModel }: UseTranscriptionOptions) {
       engineRef.current = engine;
       modeRef.current = "realtime";
       reconnectAttemptsRef.current = 0;
+      flushRingToEngine(engine);
       return true;
     } catch (err) {
       logger.transcription("realtime connect failed", err);
       engine.close();
       return false;
     }
-  }, [degrade]);
+  }, [flushRingToEngine]);
 
   useEffect(() => {
     connectRef.current = connectRealtime;
@@ -165,27 +235,23 @@ export function useTranscription({ getModel }: UseTranscriptionOptions) {
     pausedRef.current = false;
     reconnectAttemptsRef.current = 0;
     queueRef.current = [];
+    ringRef.current.clear();
     const ok = await connectRealtime();
     if (!ok) {
-      modeRef.current = "degraded";
-      dispatch({ type: "status", status: "degraded" });
+      degrade("initial connect failed");
     }
-  }, [connectRealtime]);
+  }, [connectRealtime, degrade]);
 
   const pushPcm = useCallback((frame: Float32Array, sourceRate: number) => {
+    if (pausedRef.current) return;
     if (modeRef.current === "realtime") {
       engineRef.current?.pushPcm(frame, sourceRate);
+      return;
+    }
+    if (modeRef.current === "reconnecting" || modeRef.current === "idle") {
+      ringRef.current.push(frame, sourceRate);
     }
   }, []);
-
-  const enqueue = useCallback(
-    (blob: Blob) => {
-      if (modeRef.current !== "degraded") return;
-      queueRef.current.push(blob);
-      void processQueue();
-    },
-    [processQueue],
-  );
 
   const pause = useCallback(() => {
     pausedRef.current = true;
@@ -201,6 +267,9 @@ export function useTranscription({ getModel }: UseTranscriptionOptions) {
     timedOut: boolean;
     pendingCount: number;
   }> => {
+    if (modeRef.current === "reconnecting") {
+      flushRingToRest();
+    }
     if (modeRef.current === "realtime") engineRef.current?.commit();
     const started = Date.now();
     const maxWaitMs = 40_000;
@@ -219,9 +288,13 @@ export function useTranscription({ getModel }: UseTranscriptionOptions) {
     const timedOut =
       pendingCount > 0 || queueRef.current.length > 0 || processingRef.current;
     return { timedOut, pendingCount };
-  }, []);
+  }, [flushRingToRest]);
 
   const reset = useCallback(() => {
+    if (reconnectTimerRef.current != null) {
+      window.clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
     engineRef.current?.close();
     engineRef.current = null;
     modeRef.current = "idle";
@@ -230,6 +303,7 @@ export function useTranscription({ getModel }: UseTranscriptionOptions) {
     processingRef.current = false;
     restSeqRef.current = 0;
     reconnectAttemptsRef.current = 0;
+    ringRef.current.clear();
     dispatch({ type: "reset" });
     setError(null);
   }, []);
@@ -242,6 +316,9 @@ export function useTranscription({ getModel }: UseTranscriptionOptions) {
 
   useEffect(() => {
     return () => {
+      if (reconnectTimerRef.current != null) {
+        window.clearTimeout(reconnectTimerRef.current);
+      }
       engineRef.current?.close();
     };
   }, []);

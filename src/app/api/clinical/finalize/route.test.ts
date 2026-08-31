@@ -20,6 +20,14 @@ vi.mock("@/lib/openai/clinical", () => ({
   },
 }));
 
+vi.mock("@/lib/appwrite/session", () => ({
+  requireUser: vi.fn(async () => ({
+    id: "user-a",
+    name: "Ana",
+    email: "ana@hospital.org",
+  })),
+}));
+
 import { POST } from "@/app/api/clinical/finalize/route";
 
 const validBody = {

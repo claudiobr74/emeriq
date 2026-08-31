@@ -11,6 +11,14 @@ vi.mock("@/lib/openai/realtime-session", () => ({
   ),
 }));
 
+vi.mock("@/lib/appwrite/session", () => ({
+  requireUser: vi.fn(async () => ({
+    id: "user-a",
+    name: "Ana",
+    email: "ana@hospital.org",
+  })),
+}));
+
 import { POST } from "@/app/api/realtime/session/route";
 import { createRealtimeTranscriptionSession } from "@/lib/openai/realtime-session";
 

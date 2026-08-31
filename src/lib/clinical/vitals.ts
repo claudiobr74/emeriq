@@ -67,6 +67,11 @@ export function isVitalCritical(
         vitals.glucose != null &&
         vitals.glucose < SAFETY_THRESHOLDS.hypoglycemiaMgDl
       );
+    case "glasgow":
+      return (
+        vitals.glasgow != null &&
+        vitals.glasgow <= SAFETY_THRESHOLDS.glasgowSignificantMax
+      );
     default:
       return false;
   }

@@ -33,12 +33,13 @@ describe("vital signs: Glasgow + Glicemia", () => {
     expect(parsed.vitalSigns.glucose).toBe(92);
   });
 
-  it("glucose uses the hypoglycemia safety threshold; glasgow is not auto-flagged", () => {
+  it("glucose uses the hypoglycemia safety threshold; glasgow uses GCS thresholds", () => {
     const base = createEmptyClinicalState().vitalSigns;
     expect(isVitalCritical("glucose", { ...base, glucose: 60 })).toBe(true);
     expect(isVitalCritical("glucose", { ...base, glucose: 92 })).toBe(false);
-    // Sem regra numérica de GCS na Safety Layer → não inventamos destaque.
-    expect(isVitalCritical("glasgow", { ...base, glasgow: 8 })).toBe(false);
+    expect(isVitalCritical("glasgow", { ...base, glasgow: 8 })).toBe(true);
+    expect(isVitalCritical("glasgow", { ...base, glasgow: 12 })).toBe(true);
+    expect(isVitalCritical("glasgow", { ...base, glasgow: 15 })).toBe(false);
   });
 
   it("parseVitalInput keeps blood pressure as text and others numeric", () => {

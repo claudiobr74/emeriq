@@ -12,8 +12,12 @@ export const AI_CONFIG = {
     // Modelo Realtime de transcrição e taxa de amostragem do PCM16 enviado.
     model: "gpt-4o-transcribe" as const,
     sampleRate: 24_000,
-    // Backoff de reconexão (ms) e nº máximo de tentativas antes de degradar.
-    reconnect: { baseDelayMs: 1_000, maxDelayMs: 15_000, maxAttempts: 4 },
+    // Tentativas finitas antes do modo de contingência (REST). Sem loop infinito.
+    reconnect: {
+      delaysMs: [500, 1_000, 2_000] as const,
+    },
+    // Buffer PCM efêmero durante reconnect (segundos). Nunca persistido.
+    ringBufferSeconds: 4,
   },
   transcriptionModel: "gpt-4o-transcribe",
   transcriptionModelTurbo: "gpt-4o-mini-transcribe",

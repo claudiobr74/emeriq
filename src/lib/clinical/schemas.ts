@@ -130,6 +130,7 @@ export const clinicalUpdateRequestSchema = z.object({
   confirmedTranscript: z.string(),
   newSegment: z.string(),
   sequence: z.number().int().nonnegative(),
+  stateChanged: z.boolean().optional(),
 });
 
 export const clinicalFinalizeRequestSchema = z.object({

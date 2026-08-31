@@ -8,6 +8,7 @@ export type TranscriptionStatus =
   | "listening"
   | "reconnecting"
   | "degraded"
+  | "failed"
   | "disconnected"
   | "error";
 

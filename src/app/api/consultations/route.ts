@@ -2,10 +2,11 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { clinicalStateSchema, finalClinicalReportSchema } from "@/lib/clinical/schemas";
 import {
-  createConsultation,
+  createConsultationForUser,
   consultationStatusSchema,
   appwriteReady,
 } from "@/lib/appwrite/consultations";
+import { requireUser } from "@/lib/appwrite/session";
 import {
   ensureJsonContentType,
   ensureSameOrigin,
@@ -23,12 +24,15 @@ const createBodySchema = z.object({
   soap: finalClinicalReportSchema.nullable().optional(),
   status: consultationStatusSchema.optional(),
   finalizeWarning: z.string().nullable().optional(),
+  ownerUserId: z.string().optional(),
+  owner_user_id: z.string().optional(),
 });
 
 export async function POST(request: Request) {
   try {
     ensureSameOrigin(request);
     ensureJsonContentType(request);
+    const user = await requireUser();
     if (!appwriteReady()) {
       throw new AppError("Appwrite não configurado.", "appwrite_not_configured", 503);
     }
@@ -40,7 +44,20 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
-    const row = await createConsultation(parsed.data);
+    const safe = {
+      transcript: parsed.data.transcript,
+      clinicalState: parsed.data.clinicalState,
+      soap: parsed.data.soap,
+      status: parsed.data.status,
+      finalizeWarning: parsed.data.finalizeWarning,
+    };
+    const row = await createConsultationForUser(user.id, {
+      transcript: safe.transcript,
+      clinicalState: safe.clinicalState,
+      soap: safe.soap,
+      status: safe.status,
+      finalizeWarning: safe.finalizeWarning,
+    });
     return NextResponse.json(row, { status: 201 });
   } catch (error) {
     return errorResponse(error, {

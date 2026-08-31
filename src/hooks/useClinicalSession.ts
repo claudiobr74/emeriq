@@ -14,6 +14,7 @@ import {
   type TranscriptionModelId,
 } from "@/config/ai";
 import { createEmptyClinicalState } from "@/lib/clinical/clinical-state";
+import { applySafetyToClinicalState } from "@/lib/clinical/safety";
 import { hasClinicalTrigger } from "@/lib/clinical/triggers";
 import { shouldApplySequence } from "@/lib/clinical/sequence";
 import { apiErrorMessage } from "@/lib/errors";
@@ -32,19 +33,18 @@ import type { VitalField } from "@/lib/clinical/vitals";
 import {
   clearConsultationId,
   createConsultationRemote,
-  loadConsultationRemote,
+  discardConsultationRemote,
+  fetchActiveConsultation,
   readConsultationId,
   saveConsultationRemote,
   writeConsultationId,
+  type PersistedConsultation,
 } from "@/lib/consultations/browser";
 
 type VitalSigns = ClinicalState["vitalSigns"];
 
-/**
- * Aplica as edições manuais do médico (sinais vitais e achados observados) sobre
- * o estado clínico calculado pelo servidor. As edições manuais têm precedência e
- * são reenviadas ao modelo — sem mocks, tudo representa entrada real do médico.
- */
+const AUTOSAVE_MS = 4_000;
+
 function applyManualOverlays(
   base: ClinicalState,
   manualVitals: Partial<VitalSigns>,
@@ -131,6 +131,9 @@ export function useClinicalSession() {
   const [finalizeWarning, setFinalizeWarning] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [elapsedMs, setElapsedMs] = useState(0);
+  const [restorePrompt, setRestorePrompt] = useState<PersistedConsultation | null>(
+    null,
+  );
 
   const clinicalStateRef = useRef(clinicalState);
   const settingsRef = useRef(settings);
@@ -144,10 +147,13 @@ export function useClinicalSession() {
   const inFlightRef = useRef(false);
   const elapsedOriginRef = useRef<number | null>(null);
   const elapsedOffsetRef = useRef(0);
+  const autosaveTimerRef = useRef<number | null>(null);
+  const phaseRef = useRef(phase);
 
   useEffect(() => {
     clinicalStateRef.current = clinicalState;
     settingsRef.current = settings;
+    phaseRef.current = phase;
   });
 
   const setSettings = useCallback((next: AppSettings) => {
@@ -179,21 +185,6 @@ export function useClinicalSession() {
     reset: resetTranscription,
   } = useTranscription({ getModel });
 
-  useEffect(() => {
-    const id = readConsultationId();
-    if (!id) return;
-    void loadConsultationRemote(id).then((row) => {
-      if (!row || row.status !== "finalized" || !row.soap) return;
-      clinicalStateRef.current = row.clinicalState;
-      setClinicalState(row.clinicalState);
-      setReport(row.soap);
-      setFinalizeWarning(row.finalizeWarning);
-      lastAnalyzedRef.current = row.transcript;
-      hydrateConfirmed(row.transcript);
-      setPhase("completed");
-    });
-  }, [hydrateConfirmed]);
-
   const {
     start: startRecorder,
     pause: pauseRecorder,
@@ -202,11 +193,57 @@ export function useClinicalSession() {
   } = useAudioRecorder({
     onChunk: enqueue,
     onPcmFrame: pushPcm,
+    enableWavChunks: isDegraded,
     onError: (message) => {
       setSessionError(message);
       setPhase("error");
     },
   });
+
+  const scheduleAutosave = useCallback(() => {
+    if (autosaveTimerRef.current != null) {
+      window.clearTimeout(autosaveTimerRef.current);
+    }
+    autosaveTimerRef.current = window.setTimeout(() => {
+      autosaveTimerRef.current = null;
+      const id = readConsultationId();
+      const live = phaseRef.current === "listening" || phaseRef.current === "paused";
+      if (!id || !live) return;
+      void saveConsultationRemote(id, {
+        transcript: getConfirmed(),
+        clinicalState: clinicalStateRef.current,
+        status: "active",
+      });
+    }, AUTOSAVE_MS);
+  }, [getConfirmed]);
+
+  const hydrateFromRow = useCallback(
+    (row: PersistedConsultation, nextPhase: SessionPhase) => {
+      clinicalStateRef.current = row.clinicalState;
+      setClinicalState(row.clinicalState);
+      lastAnalyzedRef.current = row.transcript;
+      hydrateConfirmed(row.transcript);
+      writeConsultationId(row.id);
+      if (row.soap && nextPhase === "completed") {
+        setReport(row.soap);
+        setFinalizeWarning(row.finalizeWarning);
+      }
+      setPhase(nextPhase);
+    },
+    [hydrateConfirmed],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchActiveConsultation().then((row) => {
+      if (cancelled || !row) return;
+      if (phaseRef.current !== "idle") return;
+      setRestorePrompt(row);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (phase !== "listening") return;
@@ -219,133 +256,137 @@ export function useClinicalSession() {
     return () => window.clearInterval(id);
   }, [phase]);
 
-  const runClinicalUpdate = useCallback(async (force: boolean) => {
-    const confirmed = getConfirmed();
-    const previous = lastAnalyzedRef.current;
-    const newSegment =
-      confirmed.startsWith(previous) && previous.length > 0
-        ? confirmed.slice(previous.length).trim()
-        : confirmed.trim();
+  const runClinicalUpdate = useCallback(
+    async (force: boolean, stateChanged = false) => {
+      const confirmed = getConfirmed();
+      const previous = lastAnalyzedRef.current;
+      const newSegment =
+        confirmed.startsWith(previous) && previous.length > 0
+          ? confirmed.slice(previous.length).trim()
+          : confirmed.trim();
 
-    if (!confirmed.trim()) return;
-    if (!force && !newSegment) return;
+      if (!force && !stateChanged && !confirmed.trim()) return;
+      if (!force && !stateChanged && !newSegment) return;
 
-    const thresholds = getAnalysisCadence();
-    const elapsed = Date.now() - lastAnalyzedAtRef.current;
-    const triggered = hasClinicalTrigger(newSegment, clinicalStateRef.current);
-    const enoughText = newSegment.length >= thresholds.minNewChars;
-    const enoughTime =
-      elapsed >= thresholds.intervalMs || lastAnalyzedAtRef.current === 0;
+      const thresholds = getAnalysisCadence();
+      const elapsed = Date.now() - lastAnalyzedAtRef.current;
+      const triggered = hasClinicalTrigger(
+        newSegment || confirmed,
+        clinicalStateRef.current,
+      );
+      const enoughText = newSegment.length >= thresholds.minNewChars;
+      const enoughTime =
+        elapsed >= thresholds.intervalMs || lastAnalyzedAtRef.current === 0;
 
-    if (!force && !triggered && !(enoughText && enoughTime)) {
-      return;
-    }
+      if (!force && !stateChanged && !triggered && !(enoughText && enoughTime)) {
+        return;
+      }
 
-    if (!force && inFlightRef.current) {
-      logger.clinicalUpdate("skip, already in flight");
-      return;
-    }
+      if (!force && inFlightRef.current) {
+        logger.clinicalUpdate("skip, already in flight");
+        return;
+      }
 
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-    const timeout = window.setTimeout(
-      () => controller.abort(),
-      AI_CONFIG.timeouts.clinicalUpdateMs,
-    );
-    const startedAt = Date.now();
-    const sequence = sequenceRef.current + 1;
-    sequenceRef.current = sequence;
-    inFlightRef.current = true;
-    setIsUpdating(true);
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+      const timeout = window.setTimeout(
+        () => controller.abort(),
+        AI_CONFIG.timeouts.clinicalUpdateMs,
+      );
+      const startedAt = Date.now();
+      const sequence = sequenceRef.current + 1;
+      sequenceRef.current = sequence;
+      inFlightRef.current = true;
+      setIsUpdating(true);
 
-    logger.clinicalUpdate("dispatch", {
-      sequence,
-      force,
-      triggered,
-      newChars: newSegment.length,
-    });
-
-    try {
-      const response = await fetch("/api/clinical/update", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        signal: controller.signal,
-        body: JSON.stringify({
-          currentState: clinicalStateRef.current,
-          confirmedTranscript: confirmed,
-          newSegment,
-          sequence,
-        }),
+      logger.clinicalUpdate("dispatch", {
+        sequence,
+        force,
+        stateChanged,
+        triggered,
+        newChars: newSegment.length,
       });
 
-      if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as {
-          error?: string;
-        } | null;
-        throw new Error(
-          payload?.error ??
-            apiErrorMessage(response.status, "Falha na análise clínica."),
-        );
-      }
-
-      const data = (await response.json()) as {
-        state: ClinicalState;
-        sequence: number;
-      };
-
-      if (!shouldApplySequence(data.sequence, appliedSequenceRef.current)) {
-        logger.clinicalUpdate("ignored stale response", data.sequence);
-        return;
-      }
-
-      appliedSequenceRef.current = data.sequence;
-      const merged = applyManualOverlays(
-        data.state,
-        manualVitalsRef.current,
-        physicianFindingsRef.current,
-      );
-      clinicalStateRef.current = merged;
-      setClinicalState(merged);
-      lastAnalyzedRef.current = confirmed;
-      lastAnalyzedAtRef.current = Date.now();
-      setClinicalError(null);
-      const consultationId = readConsultationId();
-      if (consultationId) {
-        void saveConsultationRemote(consultationId, {
-          transcript: confirmed,
-          clinicalState: merged,
-          status: "active",
+      try {
+        const response = await fetch("/api/clinical/update", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          signal: controller.signal,
+          body: JSON.stringify({
+            currentState: clinicalStateRef.current,
+            confirmedTranscript: confirmed,
+            newSegment,
+            sequence,
+            stateChanged,
+          }),
         });
-      }
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") {
-        if (
-          sequenceRef.current === sequence &&
-          Date.now() - startedAt > AI_CONFIG.timeouts.clinicalUpdateMs - 3_000
-        ) {
-          lastAnalyzedAtRef.current = Date.now();
-          setClinicalError(
-            "A análise clínica demorou demais. A gravação continua; nova tentativa em instantes.",
+
+        if (!response.ok) {
+          const payload = (await response.json().catch(() => null)) as {
+            error?: string;
+          } | null;
+          throw new Error(
+            payload?.error ??
+              apiErrorMessage(response.status, "Falha na análise clínica."),
           );
         }
-        return;
+
+        const data = (await response.json()) as {
+          state: ClinicalState;
+          sequence: number;
+        };
+
+        if (!shouldApplySequence(data.sequence, appliedSequenceRef.current)) {
+          logger.clinicalUpdate("ignored stale response", data.sequence);
+          return;
+        }
+
+        appliedSequenceRef.current = data.sequence;
+        const merged = applySafetyToClinicalState(
+          applyManualOverlays(
+            data.state,
+            manualVitalsRef.current,
+            physicianFindingsRef.current,
+          ),
+          confirmed,
+        );
+        clinicalStateRef.current = merged;
+        setClinicalState(merged);
+        lastAnalyzedRef.current = confirmed;
+        lastAnalyzedAtRef.current = Date.now();
+        setClinicalError(null);
+        scheduleAutosave();
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          if (
+            sequenceRef.current === sequence &&
+            Date.now() - startedAt > AI_CONFIG.timeouts.clinicalUpdateMs - 3_000
+          ) {
+            lastAnalyzedAtRef.current = Date.now();
+            setClinicalError(
+              "A análise clínica demorou demais. A gravação continua; nova tentativa em instantes.",
+            );
+          }
+          return;
+        }
+        logger.clinicalUpdate("clinical update failed", error);
+        lastAnalyzedAtRef.current = Date.now();
+        setClinicalError(
+          error instanceof Error
+            ? `${error.message} A gravação continua.`
+            : "Falha na análise clínica. A gravação continua.",
+        );
+      } finally {
+        window.clearTimeout(timeout);
+        if (sequenceRef.current === sequence) {
+          inFlightRef.current = false;
+          setIsUpdating(false);
+        }
       }
-      logger.clinicalUpdate("clinical update failed", error);
-      lastAnalyzedAtRef.current = Date.now();
-      setClinicalError(
-        error instanceof Error
-          ? `${error.message} A gravação continua.`
-          : "Falha na análise clínica. A gravação continua.",
-      );
-    } finally {
-      window.clearTimeout(timeout);
-      if (sequenceRef.current === sequence) {
-        inFlightRef.current = false;
-        setIsUpdating(false);
-      }
-    }
-  }, [getConfirmed]);
+    },
+    [getConfirmed, scheduleAutosave],
+  );
 
   useEffect(() => {
     if (phase !== "listening" && phase !== "paused") return;
@@ -368,6 +409,16 @@ export function useClinicalSession() {
     return phase;
   }, [phase, isTranscribing, transcriptionStatus]);
 
+  const captureStartedRef = useRef(false);
+
+  const beginCapture = useCallback(async () => {
+    await startTranscription();
+    await startRecorder();
+    captureStartedRef.current = true;
+    elapsedOriginRef.current = Date.now();
+    setPhase("listening");
+  }, [startRecorder, startTranscription]);
+
   const start = useCallback(async () => {
     setSessionError(null);
     setClinicalError(null);
@@ -386,13 +437,22 @@ export function useClinicalSession() {
     setElapsedMs(0);
     setPhase("starting");
     try {
-      await startTranscription();
-      await startRecorder();
-      elapsedOriginRef.current = Date.now();
-      setPhase("listening");
-      void createConsultationRemote().then((id) => {
-        if (id) writeConsultationId(id);
-      });
+      const created = await createConsultationRemote();
+      if (created.status === "active_exists") {
+        setPhase("idle");
+        if (created.consultation) setRestorePrompt(created.consultation);
+        else {
+          setSessionError("Já existe um atendimento em andamento.");
+        }
+        return;
+      }
+      if (!created.id) {
+        setSessionError("Não foi possível iniciar o atendimento.");
+        setPhase("error");
+        return;
+      }
+      writeConsultationId(created.id);
+      await beginCapture();
     } catch (error) {
       setSessionError(
         error instanceof Error
@@ -401,7 +461,23 @@ export function useClinicalSession() {
       );
       setPhase("error");
     }
-  }, [startRecorder, startTranscription]);
+  }, [beginCapture]);
+
+  const continueActive = useCallback(async () => {
+    const row = restorePrompt;
+    if (!row) return;
+    setRestorePrompt(null);
+    hydrateFromRow(row, "paused");
+  }, [hydrateFromRow, restorePrompt]);
+
+  const discardActive = useCallback(async () => {
+    const row = restorePrompt;
+    if (row) {
+      await discardConsultationRemote(row.id);
+    }
+    clearConsultationId();
+    setRestorePrompt(null);
+  }, [restorePrompt]);
 
   const pause = useCallback(() => {
     pauseRecorder();
@@ -411,14 +487,19 @@ export function useClinicalSession() {
       elapsedOriginRef.current = null;
     }
     setPhase("paused");
-  }, [pauseRecorder, pauseTranscription]);
+    scheduleAutosave();
+  }, [pauseRecorder, pauseTranscription, scheduleAutosave]);
 
   const resume = useCallback(async () => {
+    if (!captureStartedRef.current) {
+      await beginCapture();
+      return;
+    }
     resumeTranscription();
     await resumeRecorder();
     elapsedOriginRef.current = Date.now();
     setPhase("listening");
-  }, [resumeRecorder, resumeTranscription]);
+  }, [beginCapture, resumeRecorder, resumeTranscription]);
 
   const finalize = useCallback(async () => {
     setPhase("finalizing");
@@ -429,15 +510,27 @@ export function useClinicalSession() {
     }
     abortRef.current?.abort();
     await stopRecorder();
-    // Finalização transacional: aguarda o áudio pendente virar texto (confirmed
-    // ou failed) antes de gerar o SOAP, para o último trecho não se perder.
     const flush = await flushAndSettle();
-    const warning =
-      flush.timedOut && flush.pendingCount > 0
-        ? "A transcrição do último trecho não confirmou a tempo. O SOAP usa o texto já confirmado."
+    const lostAudio = flush.timedOut && flush.pendingCount > 0;
+    const integrity =
+      lostAudio || hasFailedSegments ? ("partial" as const) : ("complete" as const);
+    const warning = lostAudio
+      ? "Um trecho do áudio não pôde ser transcrito."
+      : hasFailedSegments
+        ? "Um trecho do áudio não pôde ser transcrito."
         : null;
     if (warning) setFinalizeWarning(warning);
     await runClinicalUpdate(true);
+
+    const consultationId = readConsultationId();
+    if (consultationId) {
+      void saveConsultationRemote(consultationId, {
+        transcript: getConfirmed(),
+        clinicalState: clinicalStateRef.current,
+        status: "finalizing",
+        transcriptionIntegrity: integrity,
+      });
+    }
 
     try {
       const response = await fetch("/api/clinical/finalize", {
@@ -462,7 +555,6 @@ export function useClinicalSession() {
       const data = (await response.json()) as { report: FinalClinicalReport };
       setReport(data.report);
       setPhase("completed");
-      const consultationId = readConsultationId();
       if (consultationId) {
         void saveConsultationRemote(consultationId, {
           transcript: getConfirmed(),
@@ -470,6 +562,7 @@ export function useClinicalSession() {
           soap: data.report,
           status: "finalized",
           finalizeWarning: warning,
+          transcriptionIntegrity: integrity,
         });
       }
     } catch (error) {
@@ -481,7 +574,13 @@ export function useClinicalSession() {
       );
       setPhase("error");
     }
-  }, [getConfirmed, runClinicalUpdate, stopRecorder, flushAndSettle]);
+  }, [
+    getConfirmed,
+    runClinicalUpdate,
+    stopRecorder,
+    flushAndSettle,
+    hasFailedSegments,
+  ]);
 
   const retryFinalize = useCallback(async () => {
     setSessionError(null);
@@ -528,6 +627,10 @@ export function useClinicalSession() {
 
   const reset = useCallback(async () => {
     abortRef.current?.abort();
+    if (autosaveTimerRef.current != null) {
+      window.clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
     await stopRecorder();
     resetTranscription();
     const empty = createEmptyClinicalState();
@@ -547,6 +650,7 @@ export function useClinicalSession() {
     physicianFindingsRef.current = [];
     elapsedOriginRef.current = null;
     elapsedOffsetRef.current = 0;
+    captureStartedRef.current = false;
     setElapsedMs(0);
     setPhase("idle");
     clearConsultationId();
@@ -555,33 +659,75 @@ export function useClinicalSession() {
   const setVital = useCallback(
     (field: VitalField, value: string | number | null) => {
       manualVitalsRef.current = { ...manualVitalsRef.current, [field]: value };
-      const merged = applyManualOverlays(
-        clinicalStateRef.current,
-        manualVitalsRef.current,
-        physicianFindingsRef.current,
+      const confirmed = getConfirmed();
+      const merged = applySafetyToClinicalState(
+        applyManualOverlays(
+          clinicalStateRef.current,
+          manualVitalsRef.current,
+          physicianFindingsRef.current,
+        ),
+        confirmed,
       );
       clinicalStateRef.current = merged;
       setClinicalState(merged);
+      scheduleAutosave();
+      void runClinicalUpdate(true, true);
     },
-    [],
+    [getConfirmed, runClinicalUpdate, scheduleAutosave],
   );
 
-  const addPhysicianFinding = useCallback((finding: string) => {
-    const trimmed = finding.trim();
-    if (!trimmed) return;
-    physicianFindingsRef.current = [...physicianFindingsRef.current, trimmed];
-    const merged = applyManualOverlays(
-      clinicalStateRef.current,
-      manualVitalsRef.current,
-      physicianFindingsRef.current,
-    );
-    clinicalStateRef.current = merged;
-    setClinicalState(merged);
-  }, []);
+  const addPhysicianFinding = useCallback(
+    (finding: string) => {
+      const trimmed = finding.trim();
+      if (!trimmed) return;
+      physicianFindingsRef.current = [...physicianFindingsRef.current, trimmed];
+      const confirmed = getConfirmed();
+      const merged = applySafetyToClinicalState(
+        applyManualOverlays(
+          clinicalStateRef.current,
+          manualVitalsRef.current,
+          physicianFindingsRef.current,
+        ),
+        confirmed,
+      );
+      clinicalStateRef.current = merged;
+      setClinicalState(merged);
+      scheduleAutosave();
+      void runClinicalUpdate(true, true);
+    },
+    [getConfirmed, runClinicalUpdate, scheduleAutosave],
+  );
 
   const retryStart = useCallback(async () => {
     await reset();
   }, [reset]);
+
+  const prepareLogout = useCallback(async () => {
+    pauseRecorder();
+    pauseTranscription();
+    if (autosaveTimerRef.current != null) {
+      window.clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+    const id = readConsultationId();
+    const live = phaseRef.current === "listening" || phaseRef.current === "paused";
+    if (id && live) {
+      await saveConsultationRemote(id, {
+        transcript: getConfirmed(),
+        clinicalState: clinicalStateRef.current,
+        status: "active",
+      });
+    }
+    await stopRecorder();
+    resetTranscription();
+    clearConsultationId();
+  }, [
+    getConfirmed,
+    pauseRecorder,
+    pauseTranscription,
+    resetTranscription,
+    stopRecorder,
+  ]);
 
   return {
     phase,
@@ -602,6 +748,7 @@ export function useClinicalSession() {
     isTranscribing,
     isUpdating,
     elapsedMs,
+    restorePrompt,
     start,
     pause,
     resume,
@@ -611,5 +758,8 @@ export function useClinicalSession() {
     retryStart,
     setVital,
     addPhysicianFinding,
+    continueActive,
+    discardActive,
+    prepareLogout,
   };
 }

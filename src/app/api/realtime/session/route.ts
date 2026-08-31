@@ -7,6 +7,7 @@ import {
 import { createRealtimeTranscriptionSession } from "@/lib/openai/realtime-session";
 import { AppError } from "@/lib/errors";
 import { ensureSameOrigin, errorResponse } from "@/lib/http";
+import { requireUser } from "@/lib/appwrite/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,6 +26,7 @@ function resolveModel(body: unknown): TranscriptionModelId {
 export async function POST(request: Request) {
   try {
     ensureSameOrigin(request);
+    await requireUser();
     let body: unknown = {};
     const contentType = request.headers.get("content-type") ?? "";
     if (contentType.toLowerCase().includes("application/json")) {

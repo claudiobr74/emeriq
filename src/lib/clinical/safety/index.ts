@@ -9,6 +9,8 @@ export function evaluateSafety(input: SafetyEvaluationInput): SafetyTrigger[] {
   }
 }
 
+export { applySafetyToClinicalState, alertsFromSafetyTriggers } from "@/lib/clinical/safety/apply";
+
 export function shouldForceClinicalReevaluation(
   input: SafetyEvaluationInput,
 ): boolean {

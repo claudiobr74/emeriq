@@ -1,40 +1,82 @@
 # DEPLOYMENT_SECURITY
 
-Práticas de segurança do MVP EmerIQ. **Não** há sistema de usuários nesta rodada;
-o objetivo é reduzir exposição acidental, não implementar autenticação completa.
+Práticas de segurança do MVP EmerIQ autenticado.
 
-## Segredos
+## Session model
 
-- `OPENAI_API_KEY` é lida **somente no servidor** (`src/lib/env.ts`). Nunca é enviada
-  ao browser. Não existe `NEXT_PUBLIC_OPENAI_API_KEY`.
-- `APPWRITE_API_KEY` e `APPWRITE_PROJECT_ID` também são server-only. Não existe
-  `NEXT_PUBLIC_APPWRITE_*`. O browser só fala com `/api/consultations`.
-- A transcrição Realtime usa **credencial efêmera** criada em
-  `POST /api/realtime/session` (a chave permanente é usada só para mintar a efêmera).
-- Nada de segredo em `localStorage`, `sessionStorage`, HTML, bundle JS ou query string.
+- Autenticação: **Appwrite Auth** (e-mail + senha).
+- Login: `POST /api/auth/login` cria sessão Appwrite no servidor
+  (`Account.createEmailPasswordSession`) e grava o `session.secret` no cookie.
+- Identidade: `Account.get()` após `client.setSession(secret)`.
+- `ownerUserId` de consultas **nunca** vem do client: o servidor usa
+  `authenticatedUser.id`.
+- Logout: destrói a sessão Appwrite (`deleteSession current`), apaga o cookie e
+  limpa estado clínico local.
 
-## Endpoints (hardening)
+## Cookie
 
-Todas as rotas de API (`/api/transcribe`, `/api/clinical/update`,
-`/api/clinical/finalize`, `/api/realtime/session`, `/api/consultations`):
+| Atributo | Valor |
+| --- | --- |
+| Nome | `emeriq_session` |
+| HttpOnly | true |
+| Secure | true em produção / Vercel |
+| SameSite | Lax |
+| Path | `/` |
+| Expiração | `session.expire` do Appwrite |
 
-- Aceitam apenas **POST** (método único exportado).
-- **Same-origin check** (`ensureSameOrigin`): rejeita origem cruzada com 403.
-- **Content-Type** `application/json` exigido nas rotas JSON (415 caso contrário).
-- **Limites de payload** (`src/lib/http.ts` → `BODY_LIMITS`): JSON 512 KB, áudio 8 MB,
-  transcrição 60 k caracteres, novo segmento 12 k caracteres (413 ao exceder).
-- **Validação Zod** dos corpos clínicos (400 em payload inválido).
-- **Sem stack traces** ao cliente: `errorResponse` devolve apenas mensagem + código estável.
+Não armazenar token em `localStorage`, query string, React state persistente ou HTML.
 
-## Proteção de acesso em deploy de teste
+## Appwrite keys
 
-Um deploy de teste/preview deve usar a **proteção de acesso da plataforma** quando
-disponível (ex.: Netlify **Password protection** / **Visitor access controls**, ou
-Vercel **Deployment Protection**). Isso evita que o endpoint vire um proxy aberto da
-OpenAI enquanto não há autenticação de aplicação.
+| Variável | Uso | Browser |
+| --- | --- | --- |
+| `APPWRITE_ADMIN_API_KEY` | Schema, login SSR (`sessions.write`) | nunca |
+| `APPWRITE_API_KEY` | Fallback legado da admin key | nunca |
+| `APPWRITE_RUNTIME_API_KEY` | Opcional, menor privilégio; consultas preferem a sessão | nunca |
+| `APPWRITE_PROJECT_ID` / `ENDPOINT` / `DATABASE_ID` / `TABLE_ID` | Identificadores de projeto | server-only neste app |
 
-## Limites de uso da IA
+Não existe `NEXT_PUBLIC_APPWRITE_ADMIN_API_KEY` nem qualquer `NEXT_PUBLIC_*` de segredo.
+A chave de admin **não** é usada para ler/escrever consultas em nome do médico.
 
-Ver `DEPLOYMENT.md` para timeouts por rota. Os limites de payload acima evitam que
-`/api/*` seja usado como proxy irrestrito. Não há rate-limiting de aplicação nesta
-rodada — combine com a proteção de acesso da plataforma.
+`OPENAI_API_KEY` permanece somente no servidor. Realtime usa credencial efêmera.
+
+## User isolation / ownership
+
+- Toda consulta tem `owner_user_id` = Appwrite User ID.
+- `getConsultationForUser` / `updateConsultationForUser` / `discardConsultationForUser`
+  exigem `row.owner_user_id === authenticatedUser.id`.
+- Falha de autorização: **404** genérico (`Não foi possível carregar o atendimento.`).
+- Linhas antigas com `owner_user_id` vazio ficam inacessíveis.
+- Migração explícita (não automática): `pnpm migrate:consultation-ownership --user=<id>`.
+
+## Row permissions
+
+Setup (`pnpm appwrite:setup`) ativa `rowSecurity` e permissões de tabela para
+usuários autenticados. Cada row recebe:
+
+`read/update/delete(user:<id>)`
+
+Defesa em profundidade: permissões Appwrite **e** checagem no backend.
+
+## Protected routes
+
+Público: `/login`, `/recuperar`, `/api/auth/login`, `/api/auth/recover`,
+`/api/auth/logout`, `/api/health`, assets.
+
+Protegido (cookie ausente): páginas → `/login`; APIs → 401.
+
+`src/proxy.ts` (Next.js 16) faz o gate de cookie. APIs clínicas ainda chamam
+`requireUser()` e validam a sessão Appwrite. Same-origin **não** é autenticação.
+
+## Production deployment protection
+
+Manter **Vercel Deployment Protection** (ou equivalente) em previews. Não substitui
+a sessão Appwrite, mas reduz exposição de deploys de teste.
+
+## Limites
+
+- Payload (`BODY_LIMITS`): JSON 512 KB, áudio 8 MB, transcrição 60 k chars.
+- Uma consulta `active` por usuário.
+- Limitador in-process no login (sem Redis).
+- Sem stack traces ao client (`errorResponse`).
+- Sem persistir áudio, partial transcript, chain-of-thought ou respostas brutas da IA.

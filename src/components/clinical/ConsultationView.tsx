@@ -64,13 +64,13 @@ export function ConsultationView(props: ConsultationViewProps) {
       {isDegraded ? (
         <ErrorBanner
           kind="connection"
-          message="Transcrição em modo degradado (processamento em trechos). A consulta continua normalmente."
+          message="Transcrição em modo de contingência"
         />
       ) : null}
       {hasFailedSegments ? (
         <ErrorBanner
           kind="transcription"
-          message="Um trecho não pôde ser transcrito. A consulta continua."
+          message="Um trecho do áudio não pôde ser transcrito."
         />
       ) : null}
       {transcriptionError ? (

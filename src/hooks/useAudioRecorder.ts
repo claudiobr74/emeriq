@@ -15,6 +15,8 @@ interface UseAudioRecorderOptions {
   /** Frame PCM bruto (Float32) + taxa de origem — usado pelo transporte Realtime. */
   onPcmFrame?: (frame: Float32Array, sourceRate: number) => void;
   onError?: (message: string) => void;
+  /** Só gerar WAV no modo de contingência. Realtime saudável usa só PCM. */
+  enableWavChunks?: boolean;
 }
 
 function concatFloat32(a: Float32Array, b: Float32Array): Float32Array {
@@ -30,6 +32,7 @@ export function useAudioRecorder({
   onChunk,
   onPcmFrame,
   onError,
+  enableWavChunks = false,
 }: UseAudioRecorderOptions) {
   const [status, setStatus] = useState<RecorderStatus>("idle");
   const statusRef = useRef<RecorderStatus>("idle");
@@ -45,11 +48,13 @@ export function useAudioRecorder({
   const onChunkRef = useRef(onChunk);
   const onPcmFrameRef = useRef(onPcmFrame);
   const onErrorRef = useRef(onError);
+  const enableWavRef = useRef(enableWavChunks);
 
   useEffect(() => {
     onChunkRef.current = onChunk;
     onPcmFrameRef.current = onPcmFrame;
     onErrorRef.current = onError;
+    enableWavRef.current = enableWavChunks;
   });
 
   const setRecorderStatus = (next: RecorderStatus) => {
@@ -59,6 +64,7 @@ export function useAudioRecorder({
 
   const emitSlice = useCallback((samples: Float32Array, sourceRate: number) => {
     if (samples.length === 0) return;
+    if (!enableWavRef.current) return;
     const downsampled = downsample(samples, sourceRate, AI_CONFIG.sampleRate);
     const blob = encodeWav(downsampled, AI_CONFIG.sampleRate);
     logger.audio("chunk emitted", {
@@ -75,6 +81,10 @@ export function useAudioRecorder({
       const sourceRate = sourceRateRef.current;
       // Transporte Realtime: envia frames PCM contínuos.
       onPcmFrameRef.current?.(input, sourceRate);
+      if (!enableWavRef.current) {
+        pendingRef.current = new Float32Array(0);
+        return;
+      }
       pendingRef.current = concatFloat32(pendingRef.current, input);
 
       const chunkSamples = Math.round((chunkDurationMs / 1000) * sourceRate);

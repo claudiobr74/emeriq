@@ -239,6 +239,21 @@ export function collectSafetyTriggers(input: SafetyEvaluationInput): SafetyTrigg
     triggers.push(hit("hypoglycemia", "critical", [`glicemia_${vitals.glucose}`]));
   }
 
+  const glasgow = input.vitalSigns?.glasgow ?? null;
+  if (glasgow != null && glasgow <= SAFETY_THRESHOLDS.glasgowCriticalMax) {
+    triggers.push(
+      hit("altered_level_of_consciousness", "critical", [`gcs_${glasgow}`]),
+    );
+  } else if (
+    glasgow != null &&
+    glasgow >= SAFETY_THRESHOLDS.glasgowSignificantMin &&
+    glasgow <= SAFETY_THRESHOLDS.glasgowSignificantMax
+  ) {
+    triggers.push(
+      hit("altered_level_of_consciousness", "high", [`gcs_${glasgow}`]),
+    );
+  }
+
   if (anyTerm(folded, LOW_CONSCIOUSNESS) && !anyTerm(folded, SEIZURE)) {
     triggers.push(hit("altered_mental_status", "high", ["rebaixamento"]));
   }

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useClinicalSession } from "@/hooks/useClinicalSession";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { AppHeader } from "@/components/clinical/AppHeader";
 import { StartScreen } from "@/components/clinical/StartScreen";
@@ -11,11 +12,16 @@ import { ProcessingScreen } from "@/components/clinical/ProcessingScreen";
 import { SoapSummary } from "@/components/clinical/SoapSummary";
 import { SettingsModal } from "@/components/clinical/SettingsModal";
 import { FinalizeConfirmModal } from "@/components/clinical/FinalizeConfirmModal";
+import { ActiveConsultationModal } from "@/components/clinical/ActiveConsultationModal";
+import { LogoutConfirmModal } from "@/components/clinical/LogoutConfirmModal";
+import type { AuthUser } from "@/lib/auth/types";
 
-export function ConsultationApp() {
+export function ConsultationApp({ user }: { user: AuthUser }) {
   const session = useClinicalSession();
+  const auth = useAuth(user);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [finalizeOpen, setFinalizeOpen] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
 
   const showStart =
     session.phase === "idle" ||
@@ -27,6 +33,22 @@ export function ConsultationApp() {
   const isFinalizeError =
     session.phase === "error" &&
     Boolean(session.confirmedTranscript || session.report);
+
+  async function handleLogout() {
+    setLogoutOpen(false);
+    setSettingsOpen(false);
+    await session.prepareLogout();
+    await auth.logout();
+  }
+
+  function requestLogout() {
+    if (live) {
+      setSettingsOpen(false);
+      setLogoutOpen(true);
+      return;
+    }
+    void handleLogout();
+  }
 
   return (
     <div className="flex min-h-dvh flex-col bg-bg text-text">
@@ -97,12 +119,25 @@ export function ConsultationApp() {
         onOpenChange={setSettingsOpen}
         settings={session.settings}
         onChange={session.setSettings}
+        onLogout={requestLogout}
       />
 
       <FinalizeConfirmModal
         open={finalizeOpen}
         onOpenChange={setFinalizeOpen}
         onConfirm={() => void session.finalize()}
+      />
+
+      <ActiveConsultationModal
+        open={Boolean(session.restorePrompt) && session.phase === "idle"}
+        onContinue={() => void session.continueActive()}
+        onDiscard={() => void session.discardActive()}
+      />
+
+      <LogoutConfirmModal
+        open={logoutOpen}
+        onOpenChange={setLogoutOpen}
+        onConfirm={() => void handleLogout()}
       />
     </div>
   );

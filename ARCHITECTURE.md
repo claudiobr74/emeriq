@@ -3,6 +3,21 @@
 Fonte de verdade da arquitetura vigente do EmerIQ. Em caso de divergência com
 qualquer outro documento, **este arquivo prevalece**.
 
+## Authentication
+
+**Appwrite Auth.** Sessão e-mail + senha. Sem cadastro público, OAuth, magic link
+ou MFA nesta versão. Usuários são provisionados no Appwrite Console.
+
+A sessão vive no cookie HttpOnly `emeriq_session` (Secure em produção, SameSite=Lax,
+Path=/). O browser não guarda token em `localStorage`, query string ou HTML.
+
+## Database
+
+**Appwrite TablesDB.** Database `emeriq`, tabela `consultations`. Cada consulta
+pertence a `owner_user_id` = Appwrite User ID do médico autenticado. Linhas
+antigas sem dono permanecem inacessíveis. Sem página de histórico, pacientes ou
+dashboard.
+
 ## AI Architecture
 
 **OpenAI only.** A Groq **não é utilizada** em nenhum caminho operacional.
@@ -23,42 +38,45 @@ qualquer outro documento, **este arquivo prevalece**.
 ## Pipeline
 
 ```
-MICROFONE
+APPWRITE AUTH
+  ↓
+MÉDICO AUTENTICADO
+  ↓
+MICROFONE (efêmero; nunca persistido)
   ↓ (áudio contínuo)
-OpenAI Realtime transcription  ──(falha na init)──▶ Fallback REST (degraded mode)
-  ↓ deltas → partialTranscript
+OpenAI Realtime transcription  ──(retries limitados)──▶ Fallback REST (contingência)
+  ↓ deltas → partialTranscript (não persistido)
   ↓ segmento finalizado → confirmedTranscript
-ClinicalState  (apenas texto confirmado, com cadência/debounce)
+ClinicalState
   ↓
-Clinical AI (OpenAI gpt-4o-mini, JSON estruturado)
+Safety Layer (local, imediata) · Clinical AI · Provenance · Protocol Router
   ↓
-Safety Layer · Provenance · Grounding · Protocol Router
+APPWRITE DATABASE (consulta do médico)
   ↓
-Interface (Figma)
+SOAP final
 ```
 
-A **transcrição** e o **raciocínio clínico** são camadas separadas e intencionais:
-o modelo Realtime só transcreve; a análise clínica é um passo distinto sobre o
-texto **confirmado** (não reage a tokens provisórios).
+A **transcrição** e o **raciocínio clínico** são camadas separadas: o modelo
+Realtime só transcreve; a análise clínica usa texto **confirmado** e também
+aceita atualização só de estado (vitais/achados manuais).
+
+## Audio storage
+
+**none.** Áudio é efêmero. Não há Appwrite Storage, WAV persistido nem PCM em disco.
 
 ## Estado clínico
 
 `ClinicalState` (Zod, `src/lib/clinical/schemas.ts`) preserva a separação de
 proveniência: relato do paciente, achados observados pelo médico, sinais vitais,
 resultados de exames, inferências e sugestões da IA. Sinais vitais: PA, FC, SpO₂,
-FR, Temperatura, **Glasgow** e Glicemia.
+FR, Temperatura, **Glasgow** e Glicemia. Glasgow alimenta a Safety Layer
+(`altered_level_of_consciousness`) — trigger, não diagnóstico.
 
 ## Não faz parte da arquitetura
 
-Groq, Web Speech API, autenticação de usuários, Nhost/Redis, RAG, agentes,
-dashboard, prontuário/pacientes/agenda, FHIR/HL7. Ver limites em
-`DEPLOYMENT_SECURITY.md`.
-
-**Persistência opcional (Appwrite TablesDB):** a tabela `consultations` guarda
-transcrição confirmada, `ClinicalState` e SOAP do atendimento corrente.
-Credenciais (`APPWRITE_ENDPOINT` + `APPWRITE_PROJECT_ID` + `APPWRITE_API_KEY`)
-ficam só no servidor. Sem a configuração, o app continua em memória. Não é
-prontuário, autenticação nem RAG.
+Groq, Web Speech API, Supabase, Firebase, Clerk, Auth0, NextAuth, Nhost/Redis,
+RAG, agentes, dashboard, prontuário/pacientes/agenda, FHIR/HL7, cadastro público.
+Ver limites em `DEPLOYMENT_SECURITY.md`.
 
 Documentos históricos (não operacionais) estão em `docs/archive/` e em
-`CORRECTIVE_AUDIT_BEFORE.md`. O relatório desta rodada é `EMERIQ_CORRECTIVE_REPORT.md`.
+`CORRECTIVE_AUDIT_BEFORE.md`.

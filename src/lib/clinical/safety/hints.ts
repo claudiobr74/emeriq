@@ -17,6 +17,10 @@ const TRIGGER_REEVALUATION_HINTS: Record<string, string> = {
   hypoglycemia: "Há glicemia explicitamente baixa. Reavalie hipoglicemia.",
   hemodynamic_instability: "Reavalie choque e perfusão, sem inventar a causa.",
   trauma_hemorrhage: "Reavalie hemorragia traumática e via aérea.",
+  altered_level_of_consciousness:
+    "Há alteração do nível de consciência. Reavalie via aérea e causas reversíveis, sem fechar diagnóstico.",
+  altered_mental_status:
+    "Há rebaixamento do nível de consciência relatado. Reavalie causas reversíveis, sem fechar diagnóstico.",
 };
 
 export function reevaluationHintForTrigger(trigger: string): string | undefined {

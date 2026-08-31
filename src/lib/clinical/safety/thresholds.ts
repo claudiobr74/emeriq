@@ -8,4 +8,9 @@ export const SAFETY_THRESHOLDS = {
   hypertensiveEmergencySystolicMmHg: 180,
   /** Glicemia capilar baixa, quando explicitamente informada. */
   hypoglycemiaMgDl: 70,
+  /** GCS ≤ este valor: reavaliação crítica do nível de consciência. */
+  glasgowCriticalMax: 8,
+  /** GCS neste intervalo: alteração significativa (não diagnóstico). */
+  glasgowSignificantMin: 9,
+  glasgowSignificantMax: 12,
 } as const;

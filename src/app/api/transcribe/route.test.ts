@@ -4,6 +4,14 @@ vi.mock("@/lib/openai/transcription", () => ({
   transcribeAudio: vi.fn(async () => "texto transcrito"),
 }));
 
+vi.mock("@/lib/appwrite/session", () => ({
+  requireUser: vi.fn(async () => ({
+    id: "user-a",
+    name: "Ana",
+    email: "ana@hospital.org",
+  })),
+}));
+
 import { POST } from "@/app/api/transcribe/route";
 
 function formRequest(init: {

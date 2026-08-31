@@ -109,9 +109,25 @@ export function getAppwriteProjectId(): string | undefined {
   return readEnvVar("APPWRITE_PROJECT_ID") ?? APPWRITE_DEFAULT_PROJECT_ID;
 }
 
-/** API key server-side. Nunca `NEXT_PUBLIC_*`. */
+/**
+ * Chave administrativa (schema, usuários, login SSR com `sessions.write`).
+ * Nunca `NEXT_PUBLIC_*`. Fallback legado: `APPWRITE_API_KEY`.
+ */
+export function getAppwriteAdminApiKey(): string | undefined {
+  return readEnvVar("APPWRITE_ADMIN_API_KEY") ?? readEnvVar("APPWRITE_API_KEY");
+}
+
+/**
+ * Chave de runtime de menor privilégio (opcional). Não usar para schema.
+ * Consultas em nome do médico devem preferir a sessão do usuário.
+ */
+export function getAppwriteRuntimeApiKey(): string | undefined {
+  return readEnvVar("APPWRITE_RUNTIME_API_KEY");
+}
+
+/** @deprecated Preferir getAppwriteAdminApiKey / sessão do usuário. */
 export function getAppwriteApiKey(): string | undefined {
-  return readEnvVar("APPWRITE_API_KEY");
+  return getAppwriteAdminApiKey();
 }
 
 export function getAppwriteDatabaseId(): string {
@@ -122,6 +138,10 @@ export function getAppwriteTableId(): string {
   return readEnvVar("APPWRITE_TABLE_ID") ?? "consultations";
 }
 
+export function getAppwriteRecoveryUrl(): string | undefined {
+  return readEnvVar("APPWRITE_RECOVERY_URL");
+}
+
 export function isAppwriteConfigured(): boolean {
-  return Boolean(getAppwriteProjectId() && getAppwriteApiKey());
+  return Boolean(getAppwriteProjectId() && getAppwriteAdminApiKey());
 }

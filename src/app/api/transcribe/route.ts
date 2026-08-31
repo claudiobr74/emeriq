@@ -7,6 +7,7 @@ import { logger } from "@/lib/logger";
 import { transcribeAudio } from "@/lib/openai/transcription";
 import { transcriptTail } from "@/lib/clinical/transcript-reconciler";
 import { BODY_LIMITS, ensureSameOrigin, errorResponse } from "@/lib/http";
+import { requireUser } from "@/lib/appwrite/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,6 +17,7 @@ export const maxDuration = 30;
 export async function POST(request: Request) {
   try {
     ensureSameOrigin(request);
+    await requireUser();
     const form = await request.formData();
     const audio = form.get("audio");
     const modelValue = String(form.get("model") ?? "");

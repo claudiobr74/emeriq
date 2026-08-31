@@ -12,6 +12,7 @@ interface SettingsModalProps {
   onOpenChange: (open: boolean) => void;
   settings: AppSettings;
   onChange: (settings: AppSettings) => void;
+  onLogout?: () => void;
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -76,6 +77,7 @@ export function SettingsModal({
   onOpenChange,
   settings,
   onChange,
+  onLogout,
 }: SettingsModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -87,6 +89,7 @@ export function SettingsModal({
             onChange(next);
             onOpenChange(false);
           }}
+          onLogout={onLogout}
         />
       ) : null}
     </Dialog>
@@ -103,10 +106,12 @@ function SettingsForm({
   settings,
   onCancel,
   onSave,
+  onLogout,
 }: {
   settings: AppSettings;
   onCancel: () => void;
   onSave: (settings: AppSettings) => void;
+  onLogout?: () => void;
 }) {
   const [draft, setDraft] = useState<AppSettings>(settings);
   const { preference, setTheme } = useTheme();
@@ -186,13 +191,28 @@ function SettingsForm({
         </section>
       </div>
 
-      <div className="mt-6 flex justify-end gap-2 border-t border-border pt-4">
-        <Button variant="secondary" size="sm" onClick={onCancel}>
-          Cancelar
-        </Button>
-        <Button size="sm" onClick={() => onSave(draft)}>
-          Salvar alterações
-        </Button>
+      <div className="mt-6 flex items-center justify-between gap-2 border-t border-border pt-4">
+        {onLogout ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-critical hover:text-critical"
+            onClick={onLogout}
+          >
+            Sair
+          </Button>
+        ) : (
+          <span />
+        )}
+        <div className="flex gap-2">
+          <Button variant="secondary" size="sm" onClick={onCancel}>
+            Cancelar
+          </Button>
+          <Button size="sm" onClick={() => onSave(draft)}>
+            Salvar alterações
+          </Button>
+        </div>
       </div>
     </DialogContent>
   );

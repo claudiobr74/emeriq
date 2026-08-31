@@ -10,6 +10,20 @@ export class AppError extends Error {
   }
 }
 
+export class UnauthorizedError extends AppError {
+  constructor(message = "Não autenticado.") {
+    super(message, "unauthorized", 401);
+    this.name = "UnauthorizedError";
+  }
+}
+
+export class ForbiddenError extends AppError {
+  constructor(message = "Não foi possível carregar o atendimento.") {
+    super(message, "forbidden", 404);
+    this.name = "ForbiddenError";
+  }
+}
+
 export function microphoneErrorMessage(error: unknown): string {
   if (error instanceof DOMException) {
     if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {

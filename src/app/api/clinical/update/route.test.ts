@@ -7,6 +7,14 @@ vi.mock("@/lib/openai/clinical", () => ({
   },
 }));
 
+vi.mock("@/lib/appwrite/session", () => ({
+  requireUser: vi.fn(async () => ({
+    id: "user-a",
+    name: "Ana",
+    email: "ana@hospital.org",
+  })),
+}));
+
 import { POST } from "@/app/api/clinical/update/route";
 
 const validBody = {
@@ -43,6 +51,26 @@ describe("POST /api/clinical/update (hardened)", () => {
     const json = (await res.json()) as { sequence: number; state: unknown };
     expect(json.sequence).toBe(1);
     expect(json.state).toBeTruthy();
+  });
+
+  it("accepts a state-only update with empty transcript", async () => {
+    const res = await POST(
+      req({
+        headers: {
+          "content-type": "application/json",
+          origin: "http://localhost",
+          host: "localhost",
+        },
+        body: JSON.stringify({
+          currentState: createEmptyClinicalState(),
+          confirmedTranscript: "",
+          newSegment: "",
+          sequence: 2,
+          stateChanged: true,
+        }),
+      }),
+    );
+    expect(res.status).toBe(200);
   });
 
   it("rejects non-JSON content type with 415", async () => {

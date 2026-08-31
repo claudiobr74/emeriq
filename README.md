@@ -27,13 +27,13 @@ Ferramenta de apoio ao profissional médico. Não substitui julgamento clínico.
 git clone https://github.com/claudiobr74/emeriq.git
 cd emeriq
 pnpm install
-printf 'OPENAI_API_KEY=sk-COLE_SUA_CHAVE_AQUI\n' > .env.local
+printf 'OPENAI_API_KEY=sk-COLE_SUA_CHAVE_AQUI\nAPPWRITE_ADMIN_API_KEY=\n' > .env.local
 pnpm dev
 ```
 
-Abra [http://localhost:3000](http://localhost:3000).
+Abra [http://localhost:3000](http://localhost:3000). Sem sessão você é redirecionado para `/login`. Usuários de teste são criados no Appwrite Console (não há cadastro público).
 
-Confira a chave sem expô-la: [http://localhost:3000/api/health](http://localhost:3000/api/health) deve retornar `{"openaiConfigured":true}`.
+Confira a chave sem expô-la: [http://localhost:3000/api/health](http://localhost:3000/api/health) deve retornar `{"openaiConfigured":true,"appwriteConfigured":true}`.
 
 A chave fica só no `.env.local`. Nunca use `NEXT_PUBLIC_OPENAI_API_KEY` e não faça commit desse arquivo.
 
@@ -51,17 +51,18 @@ A chave fica só no `.env.local`. Nunca use `NEXT_PUBLIC_OPENAI_API_KEY` e não 
    | `OPENAI_API_KEY` | sua chave `sk-...` |
    | `APPWRITE_ENDPOINT` | `https://nyc.cloud.appwrite.io/v1` |
    | `APPWRITE_PROJECT_ID` | `6a94b9240022214b03fe` |
-   | `APPWRITE_API_KEY` | API key server-only (nunca `NEXT_PUBLIC_*`) |
+   | `APPWRITE_ADMIN_API_KEY` | API key server-only com `sessions.write` + schema (nunca `NEXT_PUBLIC_*`) |
+   | `APPWRITE_API_KEY` | fallback legado da admin key |
 
 4. Escopo das variáveis: **Production**, **Preview** e **Development**.
    Depois **Redeploy** o deployment que você está usando. Chaves do
    Cloud Agent / Cursor **não** entram automaticamente na Vercel.
-5. No Appwrite Console: crie o projeto e uma API key com `tables.write`,
-   `columns.write`, `rows.read` e `rows.write`. Depois rode `pnpm appwrite:setup`.
+5. No Appwrite Console: crie o projeto, usuários de teste (sem cadastro público) e
+   uma API key admin com `sessions.write`, `tables.write`, `columns.write`,
+   `rows.read` e `rows.write`. Depois rode `pnpm appwrite:setup`.
 6. Confira `https://SEU-PROJETO.vercel.app/api/health` →
    `{"openaiConfigured":true,"appwriteConfigured":true}`.
-7. Ative **Deployment Protection** (Vercel Authentication) enquanto não houver
-   login na aplicação — evita proxy aberto da OpenAI.
+7. Login em `/login`. Sem sessão, a home redireciona para o login.
 
 A URL `https://….vercel.app` já é HTTPS (necessário para o microfone).
 
@@ -136,14 +137,14 @@ Opcional: `EVAL_LIMIT=5`, `EVAL_FILTER=chest-pain,thunderclap` ou `EVAL_RESUME=1
 
 ## Limitações atuais
 
-- Persistência opcional no Appwrite (atendimento corrente + SOAP). Sem as
-  variáveis, recarregar a página encerra o atendimento.
-- Sem autenticação e sem múltiplos usuários.
+- Autenticação Appwrite (e-mail + senha). Sem cadastro público, OAuth ou MFA.
+- Persistência Appwrite TablesDB do atendimento corrente + SOAP, isolada por médico.
+- Sem histórico, pacientes, dashboard ou prontuário.
 - Sem RAG vetorial ou embeddings.
 - Sem integração com prontuário, agenda ou prescrição eletrônica.
-- Áudio e transcrição não são armazenados.
+- Áudio nunca é armazenado. Partial transcript não é persistido.
 - Uso inicial para avaliação controlada por profissionais.
 
 ## Como funciona
 
-O navegador captura o microfone de forma contínua e transcreve via **OpenAI Realtime** (sessão efêmera em `/api/realtime/session`; a chave permanente não chega ao browser). Tokens provisórios aparecem como transcrição parcial; só o texto **confirmado** alimenta `/api/clinical/update` (OpenAI `gpt-4o-mini`). Se o Realtime falhar, o app cai para `/api/transcribe` em trechos (modo degradado). Ao finalizar, o último áudio é aguardado e `/api/clinical/finalize` gera o SOAP.
+O médico autentica no Appwrite (e-mail + senha). O navegador captura o microfone de forma contínua e transcreve via **OpenAI Realtime** (sessão efêmera em `/api/realtime/session`; a chave permanente não chega ao browser). Tokens provisórios aparecem como transcrição parcial; só o texto **confirmado** alimenta `/api/clinical/update` (OpenAI `gpt-4o-mini`). Vitais e achados manuais disparam Safety local e um Clinical Update mesmo sem nova fala. Se o Realtime falhar após retries limitados, o app cai para `/api/transcribe` em trechos (modo degradado). Ao finalizar, o último áudio é aguardado e `/api/clinical/finalize` gera o SOAP, persistido na consulta do médico no Appwrite.

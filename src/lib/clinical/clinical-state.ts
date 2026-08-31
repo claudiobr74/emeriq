@@ -52,6 +52,7 @@ export function createEmptyClinicalState(): ClinicalState {
 export function hasLiveClinicalContent(state: ClinicalState): boolean {
   return (
     state.alerts.length > 0 ||
+    state.systemSafetyTriggers.length > 0 ||
     state.suggestedQuestions.length > 0 ||
     state.hypotheses.length > 0 ||
     state.dangerousDifferentials.length > 0 ||

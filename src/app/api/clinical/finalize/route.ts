@@ -9,6 +9,7 @@ import {
   readJsonLimited,
 } from "@/lib/http";
 import { AppError } from "@/lib/errors";
+import { requireUser } from "@/lib/appwrite/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,6 +19,7 @@ export const maxDuration = 60;
 export async function POST(request: Request) {
   try {
     ensureSameOrigin(request);
+    await requireUser();
     ensureJsonContentType(request);
     const body = await readJsonLimited(request);
     const parsed = clinicalFinalizeRequestSchema.safeParse(body);

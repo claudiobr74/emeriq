@@ -16,6 +16,7 @@ export interface SafetyEvaluationInput {
     respiratoryRate: number | null;
     oxygenSaturation: number | null;
     temperature: number | null;
+    glasgow?: number | null;
     glucose: number | null;
   };
   medications?: string[];

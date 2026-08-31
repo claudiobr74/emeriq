@@ -4,11 +4,12 @@ export const CONSULTATION_STORAGE_KEY = "emeriq.consultationId";
 
 export interface PersistedConsultation {
   id: string;
-  status: "active" | "finalized";
+  status: "active" | "finalizing" | "finalized" | "discarded";
   transcript: string;
   clinicalState: ClinicalState;
   soap: FinalClinicalReport | null;
   finalizeWarning: string | null;
+  transcriptionIntegrity?: "complete" | "partial" | null;
 }
 
 export function readConsultationId(): string | null {
@@ -37,15 +38,20 @@ export function clearConsultationId(): void {
 }
 
 async function parseConsultation(response: Response): Promise<PersistedConsultation | null> {
+  if (response.status === 401) {
+    window.location.href = `${window.location.origin}/login`;
+    return null;
+  }
   if (response.status === 503) return null;
   if (!response.ok) return null;
   const json = (await response.json()) as {
     id: string;
-    status: "active" | "finalized";
+    status: PersistedConsultation["status"];
     transcript: string;
     clinical_state: ClinicalState;
     soap: FinalClinicalReport | null;
     finalize_warning: string | null;
+    transcription_integrity?: "complete" | "partial" | null;
   };
   return {
     id: json.id,
@@ -54,20 +60,64 @@ async function parseConsultation(response: Response): Promise<PersistedConsultat
     clinicalState: json.clinical_state,
     soap: json.soap,
     finalizeWarning: json.finalize_warning,
+    transcriptionIntegrity: json.transcription_integrity ?? null,
   };
 }
 
-export async function createConsultationRemote(): Promise<string | null> {
+export async function fetchActiveConsultation(): Promise<PersistedConsultation | null> {
+  try {
+    const response = await fetch("/api/consultations/active", { method: "GET" });
+    if (response.status === 401) {
+      window.location.href = `${window.location.origin}/login`;
+      return null;
+    }
+    if (!response.ok) return null;
+    const json = (await response.json()) as {
+      consultation: {
+        id: string;
+        status: PersistedConsultation["status"];
+        transcript: string;
+        clinical_state: ClinicalState;
+        soap: FinalClinicalReport | null;
+        finalize_warning: string | null;
+        transcription_integrity?: "complete" | "partial" | null;
+      } | null;
+    };
+    if (!json.consultation || json.consultation.status !== "active") return null;
+    const row = json.consultation;
+    return {
+      id: row.id,
+      status: row.status,
+      transcript: row.transcript,
+      clinicalState: row.clinical_state,
+      soap: row.soap,
+      finalizeWarning: row.finalize_warning,
+      transcriptionIntegrity: row.transcription_integrity ?? null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function createConsultationRemote(): Promise<{
+  id: string | null;
+  status: "created" | "active_exists" | "failed";
+  consultation?: PersistedConsultation;
+}> {
   try {
     const response = await fetch("/api/consultations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: "active" }),
     });
+    if (response.status === 409) {
+      const active = await fetchActiveConsultation();
+      return { id: active?.id ?? null, status: "active_exists", consultation: active ?? undefined };
+    }
     const row = await parseConsultation(response);
-    return row?.id ?? null;
+    return { id: row?.id ?? null, status: row ? "created" : "failed" };
   } catch {
-    return null;
+    return { id: null, status: "failed" };
   }
 }
 
@@ -77,8 +127,9 @@ export async function saveConsultationRemote(
     transcript?: string;
     clinicalState?: ClinicalState;
     soap?: FinalClinicalReport | null;
-    status?: "active" | "finalized";
+    status?: PersistedConsultation["status"];
     finalizeWarning?: string | null;
+    transcriptionIntegrity?: "complete" | "partial" | null;
   },
 ): Promise<void> {
   try {
@@ -91,6 +142,7 @@ export async function saveConsultationRemote(
         soap: payload.soap,
         status: payload.status,
         finalizeWarning: payload.finalizeWarning,
+        transcriptionIntegrity: payload.transcriptionIntegrity,
       }),
     });
   } catch {
@@ -106,5 +158,13 @@ export async function loadConsultationRemote(
     return await parseConsultation(response);
   } catch {
     return null;
+  }
+}
+
+export async function discardConsultationRemote(id: string): Promise<void> {
+  try {
+    await fetch(`/api/consultations/${id}`, { method: "DELETE" });
+  } catch {
+    /* best-effort */
   }
 }
