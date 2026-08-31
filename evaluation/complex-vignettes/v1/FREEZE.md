@@ -21,7 +21,7 @@ Preenchido após os 60 casos e **antes** do FIRST_RUN.
 
 | Campo | Valor |
 | --- | --- |
-| DATASET_SHA256 | _pending_ |
+| DATASET_SHA256 | `1ccb50e548a2d71fc400da04b3f48d88a4213db01e287102ad8289bfbd9eb044` |
 | Case count | 60 |
 
 ## FIRST_RUN
