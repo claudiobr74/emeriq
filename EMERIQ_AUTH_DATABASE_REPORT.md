@@ -37,6 +37,8 @@ Arquivo `EucPNedxngcqVYMwhD64co`, via Figma MCP (`get_design_context` + screensh
 | Tablet | `5:1034` | Entrar no sistema / Entrar (full-width) |
 | Mobile | `5:711` | Entrar no EmerIQ / Acessar sistema |
 
+Layouts via CSS (desktop `min-[1024px]`, tablet `640–1023`, mobile `<640`) — sem `useLayoutMode` no primeiro paint, para não flashar o layout desktop em tablet/mobile. Formulário `method="post"` para não vazar e-mail na query se o JS falhar.
+
 Estados: idle, submitting, success, invalid_credentials, network_error, rate_limited, unknown_error. Olho de senha conforme o Figma. “Esqueceu sua senha?” chama recovery real (não é link morto). Sem “Criar conta”. Sem status bar iOS fake.
 
 ## Protected routes
@@ -134,6 +136,10 @@ Appwrite real **não** é chamado nos unitários (adapter mockado).
 | `pnpm eval:clinical` | pass (exit 0) — 35 cases, 28 PASS / 7 FAIL, mean 91.5; o CLI só falha se **todos** os casos falham |
 | `pnpm build` | pass — Next.js 16.3.3, Proxy (Middleware) ativo, rotas `/login` e `/api/auth/*` |
 
+E2E (API, Appwrite real): login inválido 401 com mensagem segura; login válido define cookie HttpOnly; `ownerUserId` do client ignorado; 409 na segunda consulta `active`; GET/PATCH/DELETE cross-user 404; logout zera a sessão.
+
+E2E (UI): `/` sem cookie → login Figma desktop; credenciais inválidas mostram “E-mail ou senha inválidos.”; sessão real abre a Start; Settings contém **Sair**. Layouts tablet/mobile batem nos nodes Figma. Microfone/Realtime no browser desta VM não foi exercitado (computerUse indisponível); o fluxo clínico de vitais/Glasgow está coberto por testes unitários da Safety Layer.
+
 ## Eval results
 
 Harness OpenAI `gpt-4o-mini` (não é regressão de auth). SOAP fidelity 100%. Falhas pontuais: alucinação “intervenção sugerida como realizada” e 2 misses de mustNotMiss (tbi-01, chest-trauma-01). Variância do modelo clínico; fora do escopo desta rodada.
@@ -144,6 +150,7 @@ Harness OpenAI `gpt-4o-mini` (não é regressão de auth). SOAP fidelity 100%. F
 - Limitador de login é in-process (sem Redis).
 - Cookie gate no proxy não valida a sessão (só presença); a validação ocorre em `requireUser` / `getSessionUser`.
 - `APPWRITE_ADMIN_API_KEY` ainda é necessária no login SSR (`sessions.write`). Consultas runtime usam a sessão do médico.
+- Microfone / OpenAI Realtime no browser desta VM não foi exercitado (computerUse indisponível). Safety de PA/Glasgow/achados está coberta por testes unitários.
 
 ## Not implemented
 
