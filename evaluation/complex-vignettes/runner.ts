@@ -34,11 +34,16 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 5): Promise<T> {
       return await fn();
     } catch (error) {
       last = error;
-      if (!isRetryableClinicalError(error) || i === attempts - 1) throw error;
+      const wrappedFail =
+        error instanceof AppError &&
+        (error.code === "clinical_model_failed" || error.status === 502);
+      if ((!isRetryableClinicalError(error) && !wrappedFail) || i === attempts - 1) {
+        throw error;
+      }
       const wait =
         error instanceof AppError && error.retryAfterMs
           ? Math.min(Math.max(error.retryAfterMs, 5_000), 240_000)
-          : 65_000;
+          : 12_000 * (i + 1);
       const message = error instanceof Error ? error.message.slice(0, 120) : "erro";
       console.error(`  retry ${i + 1}/${attempts - 1} in ${Math.round(wait / 1000)}s (${message})`);
       await sleep(wait);
@@ -157,11 +162,11 @@ export function buildComplexReport(
     ).length,
     casesWithFabricationRate: rate(hallCases, scores.length),
     soapFidelity: rate(soapPass, scores.length),
-    overtriageRate: rate(
+    overtriageRate: failRate(
       overDenom.filter((item) => item.overtriage).length,
       overDenom.length,
     ),
-    undertriageRate: rate(
+    undertriageRate: failRate(
       underDenom.filter((item) => item.undertriage).length,
       underDenom.length,
     ),
