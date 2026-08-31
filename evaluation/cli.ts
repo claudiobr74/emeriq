@@ -3,6 +3,10 @@ import { runClinicalEvaluation, writeReports } from "./runner";
 runClinicalEvaluation()
   .then((report) => {
     writeReports(report);
+    if (report.gates?.overall === "FAILED") {
+      process.exitCode = 1;
+      return;
+    }
     if (report.totals.fail === report.totals.cases) {
       process.exitCode = 1;
     }

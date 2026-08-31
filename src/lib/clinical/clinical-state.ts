@@ -1,4 +1,6 @@
 import type { ClinicalState } from "@/lib/clinical/schemas";
+import { UNKNOWN_PRESENCE } from "@/lib/clinical/presence";
+import { CLINICAL_STATE_VERSION } from "@/lib/clinical/versions";
 
 export function createEmptyClinicalState(): ClinicalState {
   return {
@@ -46,6 +48,8 @@ export function createEmptyClinicalState(): ClinicalState {
     possibleTreatments: [],
     alerts: [],
     systemSafetyTriggers: [],
+    schemaVersion: CLINICAL_STATE_VERSION,
+    keyPresence: { ...UNKNOWN_PRESENCE },
   };
 }
 
@@ -85,5 +89,18 @@ export function compactClinicalState(state: ClinicalState): Record<string, unkno
     suggestedTests: state.suggestedTests,
     possibleTreatments: state.possibleTreatments,
     alerts: state.alerts,
+    schemaVersion: state.schemaVersion ?? CLINICAL_STATE_VERSION,
+    keyPresence: state.keyPresence,
+  };
+}
+
+export function migrateClinicalState(state: ClinicalState): ClinicalState {
+  if (state.schemaVersion === CLINICAL_STATE_VERSION && state.keyPresence) {
+    return state;
+  }
+  return {
+    ...state,
+    schemaVersion: CLINICAL_STATE_VERSION,
+    keyPresence: state.keyPresence ?? { ...UNKNOWN_PRESENCE },
   };
 }

@@ -18,7 +18,13 @@ import {
   salvageFinalReport,
 } from "@/lib/clinical/parse";
 import type { ClinicalState, FinalClinicalReport } from "@/lib/clinical/schemas";
+import { stripInventedNegatives } from "@/lib/clinical/presence";
+import { applyReliabilityLayer } from "@/lib/clinical/reliability";
 import { evaluateSafety, reevaluationHintForTrigger } from "@/lib/clinical/safety";
+import {
+  formatMandatoryConsiderations,
+  mandatoryConsiderationsFromTriggers,
+} from "@/lib/clinical/safety/considerations";
 import { AppError, openAiRetryAfterMs } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import { getOpenAiClient } from "@/lib/openai/client";
@@ -151,13 +157,16 @@ export class OpenAiClinicalProvider implements ClinicalAIProvider {
         confirmedTranscript: input.confirmedTranscript,
         newSegment: input.newSegment,
         protocolContext: formatProtocolContext(protocols),
-        safetyTriggers: triggers
-          .map((item) => {
+        safetyTriggers: [
+          ...triggers.map((item) => {
             const hint = reevaluationHintForTrigger(item.trigger);
             return hint
               ? `${item.trigger} (${item.priority}): ${hint}`
               : `${item.trigger} (${item.priority})`;
-          })
+          }),
+          formatMandatoryConsiderations(mandatoryConsiderationsFromTriggers(triggers)),
+        ]
+          .filter(Boolean)
           .join("\n"),
       }),
       salvage: salvageClinicalState,
@@ -168,10 +177,14 @@ export class OpenAiClinicalProvider implements ClinicalAIProvider {
     });
 
     const stable = stabilizeClinicalState(input.currentState, salvaged);
-    return {
-      ...stable,
-      systemSafetyTriggers: triggers,
-    };
+    return applyReliabilityLayer(
+      {
+        ...stable,
+        systemSafetyTriggers: triggers,
+      },
+      input.confirmedTranscript,
+      triggers,
+    );
   }
 
   async finalize(input: ClinicalFinalizeInput): Promise<FinalClinicalReport> {
@@ -181,8 +194,9 @@ export class OpenAiClinicalProvider implements ClinicalAIProvider {
       vitalSigns: input.state.vitalSigns,
       medications: input.state.medications,
     });
+    const reliable = applyReliabilityLayer(input.state, input.transcript, triggers);
     const protocols = selectRelevantProtocols(
-      input.state,
+      reliable,
       input.transcript,
       triggers,
       2,
@@ -196,7 +210,7 @@ export class OpenAiClinicalProvider implements ClinicalAIProvider {
     const report = await completeJson({
       system: FINALIZE_SYSTEM_PROMPT,
       user: buildFinalizeUserPrompt({
-        currentStateJson: JSON.stringify(compactClinicalState(input.state)),
+        currentStateJson: JSON.stringify(compactClinicalState(reliable)),
         transcript: input.transcript,
         protocolContext: formatProtocolContext(protocols),
       }),
@@ -207,10 +221,21 @@ export class OpenAiClinicalProvider implements ClinicalAIProvider {
       label: "ClinicalFinalize",
     });
 
-    return validateAndSanitizeSoap(report, {
+    const sanitized = validateAndSanitizeSoap(report, {
       transcript: input.transcript,
-      state: input.state,
+      state: reliable,
     }).report;
+    const presence = reliable.keyPresence;
+    if (!presence) return sanitized;
+    return {
+      ...sanitized,
+      soap: {
+        subjective: stripInventedNegatives(sanitized.soap.subjective, presence),
+        objective: stripInventedNegatives(sanitized.soap.objective, presence),
+        assessment: stripInventedNegatives(sanitized.soap.assessment, presence),
+        plan: sanitized.soap.plan,
+      },
+    };
   }
 }
 

@@ -1,3 +1,6 @@
+import type { FailSeverity, HallucinationEvent } from "./clinical-gates";
+import type { ClinicalQualityGateReport } from "./clinical-gates";
+
 export interface ClinicalEvaluationCase {
   id: string;
   title: string;
@@ -23,12 +26,16 @@ export interface CaseScore {
   emergencyRecall: "PASS" | "FAIL";
   criticalQuestions: { hit: number; total: number };
   hallucinations: number;
+  hallucinationEvents: HallucinationEvent[];
+  casesWithFabrication: boolean;
   soapFidelity: "PASS" | "FAIL";
   workup: "PASS" | "FAIL";
   score: number;
   status: "PASS" | "FAIL";
+  failSeverity: FailSeverity | null;
   failReasons: string[];
   notes: string[];
+  latencyMs?: { update: number; finalize: number };
 }
 
 export interface EvaluationReport {
@@ -36,6 +43,9 @@ export interface EvaluationReport {
   provider: string;
   model: string;
   promptVersion: string;
+  clinicalStateVersion: string;
+  safetyVersion: string;
+  knowledgeVersion: string;
   temperature: number;
   totals: {
     cases: number;
@@ -44,7 +54,16 @@ export interface EvaluationReport {
     meanScore: number;
     criticalDiagnosisRecall: number;
     hallucinationRate: number;
+    casesWithFabricationRate: number;
+    fabricatedFactCount: number;
     soapFidelity: number;
+    criticalFails: number;
+    criticalHallucinations: number;
+    unsupportedGroundingRate: number;
+    criticalUnsafeRecommendations: number;
+    meanUpdateLatencyMs: number;
+    meanFinalizeLatencyMs: number;
   };
+  gates?: ClinicalQualityGateReport;
   cases: CaseScore[];
 }

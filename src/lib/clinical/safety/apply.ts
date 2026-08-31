@@ -54,6 +54,21 @@ const TRIGGER_ALERTS: Record<
     title: "Sangramento importante",
     fallback: "Reavalie hemorragia e instabilidade.",
   },
+  gi_bleeding: {
+    severity: "critical",
+    title: "Sangramento digestivo",
+    fallback: "Há sangramento digestivo sugerido. Reavalie hemorragia, sem confirmar o sítio.",
+  },
+  head_trauma_high_risk: {
+    severity: "critical",
+    title: "Trauma craniano de risco",
+    fallback: "Considere TCE e hemorragia intracraniana, sem confirmá-los.",
+  },
+  chest_trauma_respiratory: {
+    severity: "critical",
+    title: "Trauma torácico",
+    fallback: "Considere pneumotórax, sem confirmá-lo.",
+  },
   trauma_hemorrhage: {
     severity: "critical",
     title: "Trauma com instabilidade",

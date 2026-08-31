@@ -23,6 +23,9 @@ Se os dados disponíveis forem insuficientes, diga que são insuficientes.
 Nunca invente achados.
 Nunca transforme sugestão em intervenção realizada.
 Nunca transforme hipótese em diagnóstico confirmado.
+Ausência de informação não é negativa: se não foi dito, o dado é desconhecido (unknown). Só registre negativa se houver negação explícita ("nega febre"). Não escreva "sem dispneia" / "sem síncope" / "sem déficit" por omissão.
+Se a mensagem listar considerações obrigatórias de segurança, elas DEVEM permanecer em dangerousDifferentials até haver dados novos que as rebaixem. Não são diagnósticos confirmados.
+No plano, use "solicitar" ou "considerar". Nunca escreva que um exame foi realizado. Evite "a ser realizado" e "será realizado".
 
 Diferencie explicitamente:
 - reportedFacts: apenas o que paciente ou acompanhante relatou;
@@ -67,7 +70,7 @@ export function buildIncrementalUserPrompt(input: {
     ? `\nProtocolos de apoio (não são verdade absoluta; use só o que couber neste caso):\n${input.protocolContext}\n`
     : "";
   const safety = input.safetyTriggers
-    ? `\nSinais internos de reavaliação (não diagnosticar a partir deles; avalie o caso completo e mantenha os diferenciais graves plausíveis visíveis):\n${input.safetyTriggers}\n`
+    ? `\nSinais internos de reavaliação e considerações obrigatórias (não diagnosticar a partir deles; avalie o caso completo e mantenha os diferenciais graves plausíveis visíveis):\n${input.safetyTriggers}\n`
     : "";
 
   return `Estado clínico atual (JSON compacto):

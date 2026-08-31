@@ -5,7 +5,7 @@ import {
 } from "@/clinical-knowledge/registry";
 import type { SafetyTrigger } from "@/lib/clinical/safety";
 import type { ClinicalState } from "@/lib/clinical/schemas";
-import { foldPt } from "@/lib/clinical/text";
+import { foldPt, includesFoldedToken } from "@/lib/clinical/text";
 
 interface RouteRule {
   id: ProtocolId;
@@ -50,17 +50,42 @@ const ROUTES: RouteRule[] = [
   },
   {
     id: "abdominal-pain",
-    terms: ["dor abdominal", "dor na barriga", "abdome"],
-    triggers: [],
+    terms: [
+      "dor abdominal",
+      "dor na barriga",
+      "abdome",
+      "hematemese",
+      "borra de cafe",
+      "vomito com sangue",
+      "hemorragia digestiva",
+    ],
+    triggers: ["gi_bleeding"],
   },
   {
     id: "trauma",
-    terms: ["trauma", "atropelamento", "queda de altura"],
-    triggers: ["trauma_hemorrhage"],
+    terms: [
+      "trauma",
+      "atropelamento",
+      "queda de altura",
+      "queda de escada",
+      "bateu a cabeca",
+      "moto",
+      "murmurio diminuido",
+      "trauma toracico",
+      "tce",
+    ],
+    triggers: ["trauma_hemorrhage", "head_trauma_high_risk", "chest_trauma_respiratory"],
   },
   {
     id: "intoxication",
-    terms: ["intoxicacao", "overdose", "comprimidos"],
+    terms: [
+      "intoxicacao",
+      "overdose",
+      "comprimidos",
+      "substancia desconhecida",
+      "pupilas mioticas",
+      "frascos",
+    ],
     triggers: ["intoxication"],
   },
   {
@@ -105,7 +130,12 @@ export function selectRelevantProtocols(
     const scored = ROUTES.map((route) => {
       let score = 0;
       for (const term of route.terms) {
-        if (blob.includes(foldPt(term))) score += 2;
+        const foldedTerm = foldPt(term);
+        const hits =
+          foldedTerm.length <= 4
+            ? includesFoldedToken(blob, term)
+            : blob.includes(foldedTerm);
+        if (hits) score += 2;
       }
       for (const trigger of route.triggers) {
         if (triggerSet.has(trigger)) score += 3;

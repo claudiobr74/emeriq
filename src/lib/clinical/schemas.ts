@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CLINICAL_STATE_VERSION } from "@/lib/clinical/versions";
 
 export const prioritySchema = z.enum(["high", "medium", "low"]);
 export const suggestionPrioritySchema = z.enum([
@@ -48,6 +49,25 @@ export const systemSafetyTriggerSchema = z.object({
   trigger: z.string(),
   priority: safetyPrioritySchema,
   matchedTerms: z.array(z.string()),
+});
+
+export const clinicalPresenceSchema = z.enum([
+  "positive",
+  "negative_explicit",
+  "unknown",
+]);
+
+export const keyPresenceSchema = z.object({
+  dyspnea: clinicalPresenceSchema,
+  syncope: clinicalPresenceSchema,
+  focalDeficit: clinicalPresenceSchema,
+  fever: clinicalPresenceSchema,
+  bleeding: clinicalPresenceSchema,
+  seizure: clinicalPresenceSchema,
+  trauma: clinicalPresenceSchema,
+  pregnancy: clinicalPresenceSchema,
+  anticoagulantUse: clinicalPresenceSchema,
+  alteredConsciousness: clinicalPresenceSchema,
 });
 
 export const vitalSignsSchema = z.object({
@@ -106,6 +126,8 @@ export const clinicalStateSchema = z.object({
   possibleTreatments: z.array(clinicalSuggestionSchema).max(6),
   alerts: z.array(clinicalAlertSchema).max(5),
   systemSafetyTriggers: z.array(systemSafetyTriggerSchema).max(8).default([]),
+  schemaVersion: z.string().optional().default(CLINICAL_STATE_VERSION),
+  keyPresence: keyPresenceSchema.optional(),
 });
 
 export const soapSchema = z.object({
@@ -144,6 +166,8 @@ export type ClinicalSuggestion = z.infer<typeof clinicalSuggestionSchema>;
 export type ClinicalAlert = z.infer<typeof clinicalAlertSchema>;
 export type SuggestedQuestion = z.infer<typeof suggestedQuestionSchema>;
 export type ClinicalTestResult = z.infer<typeof clinicalTestResultSchema>;
+export type KeyPresence = z.infer<typeof keyPresenceSchema>;
+export type ClinicalPresence = z.infer<typeof clinicalPresenceSchema>;
 export type FinalClinicalReport = z.infer<typeof finalClinicalReportSchema>;
 export type SoapNote = z.infer<typeof soapSchema>;
 export type QuestionPriority = z.infer<typeof questionPrioritySchema>;

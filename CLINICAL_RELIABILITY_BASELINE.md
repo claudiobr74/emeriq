@@ -18,19 +18,24 @@ Estes números são **engenharia de qualidade clínica sintética**. Não são v
 | CLI | `pnpm eval:clinical` (`evaluation/cli.ts`) |
 | Exit code daquele run | `0` (o CLI só saía 1 se **todos** os casos falhassem) |
 
-Uma reexecução sem alteração de código foi disparada no início desta rodada (`eval-run.log`). Os totais abaixo são os do artefato em disco **antes** dessa reexecução. A reexecução pode divergir por variância do modelo; se divergir, os dois conjuntos ficam documentados em `evaluation/reports/failure-analysis-v1.3.md`.
+Uma reexecução sem alteração de código foi disparada no início desta rodada (`eval-run.log`). Os totais abaixo incluem **os dois conjuntos**. A autópsia dos 9 FAIL usa o artefato congelado (conjunto mais pessimista e o pedido original desta rodada). Esses 9 IDs são o golden regression set permanente.
 
 ## Totais (artefato pré-rodada)
 
-| Métrica | Valor | Como é calculada hoje |
-| --- | ---: | --- |
-| Cases | 35 | `CLINICAL_CASES.length` |
-| PASS | 26 | `status === "PASS"` |
-| FAIL | 9 | restante |
-| Mean score | 89.3 | média aritmética de `score` |
-| Critical diagnosis recall | 80% | fração dos casos **com** `mustNotMiss` cujo `emergencyRecall === PASS` |
-| Hallucination rate | 17.1% | **fração de casos** com `hallucinations > 0` (não é fração de fatos) |
-| SOAP fidelity | 100% | fração de casos com `soapFidelity === PASS` |
+| Métrica | Artefato 02:47 | Reexecução unmodified 10:43 |
+| --- | ---: | ---: |
+| Cases | 35 | 35 |
+| PASS | 26 | 29 |
+| FAIL | 9 | 6 |
+| Mean score | 89.3 | 91.9 |
+| Critical diagnosis recall | 80% | 86.7% |
+| Hallucination rate (casos) | 17.1% | 11.4% |
+| SOAP fidelity | 100% | 100% |
+| Exit code | 0 | 0 |
+
+**Baseline oficial desta rodada (mais conservador / artefato inicial):** 26 PASS / 9 FAIL, recall 80%, hallucination 17.1%, mean 89.3.
+
+A reexecução sem mudança de código já mostrou variância: `gi-bleed-01`, `chest-pain-01` e `adversarial-spo2-01` passaram. Os FAILs persistentes na reexecução: `chest-pain-02`, `dissection-01`, `tbi-01`, `chest-trauma-01`, `tox-unknown-01`, `adversarial-ecg-01`.
 
 ## Hallucination metric (auditoria)
 

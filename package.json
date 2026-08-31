@@ -10,6 +10,10 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "eval:clinical": "tsx evaluation/cli.ts",
+    "eval:clinical:critical": "EVAL_SUITE=critical tsx evaluation/cli.ts",
+    "eval:clinical:stability": "EVAL_SUITE=critical EVAL_REPEAT=3 tsx evaluation/cli.ts",
+    "release-check": "pnpm lint && pnpm typecheck && pnpm test && pnpm eval:clinical:critical && pnpm eval:clinical && pnpm build",
+    "build:unsafe": "next build",
     "appwrite:setup": "tsx scripts/appwrite-setup.ts",
     "migrate:consultation-ownership": "tsx scripts/migrate-consultation-ownership.ts"
   },

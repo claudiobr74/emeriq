@@ -126,4 +126,58 @@ describe("clinical scorer", () => {
     });
     expect(result.emergencyRecall).toBe("PASS");
   });
+
+  it("does not treat future-tense ECG plan as a performed intervention", () => {
+    const state = createEmptyClinicalState();
+    for (const plan of [
+      "ECG a ser realizado na sala.",
+      "ECG não realizado ainda.",
+      "Solicitar ECG. Exame ainda não realizado.",
+      "Considerar ECG.",
+    ]) {
+      const result = scoreCase({
+        case: {
+          id: "adversarial-ecg-01",
+          title: "t",
+          category: "adversarial",
+          transcriptSegments: ["Dor no peito. O médico disse que vamos considerar um ECG."],
+          expected: { expectedTests: ["ECG"] },
+          forbidden: { fabricatedFacts: ["ECG realizado"] },
+        },
+        transcript: "Dor no peito. O médico disse que vamos considerar um ECG.",
+        state,
+        report: {
+          ...emptyReport,
+          soap: { ...emptyReport.soap, plan },
+        },
+      });
+      expect(result.status, plan).toBe("PASS");
+      expect(result.hallucinations, plan).toBe(0);
+    }
+  });
+
+  it("flags ECG literally recorded as performed", () => {
+    const result = scoreCase({
+      case: {
+        id: "adversarial-ecg-01",
+        title: "t",
+        category: "adversarial",
+        transcriptSegments: ["Dor no peito."],
+        expected: { expectedTests: ["ECG"] },
+        forbidden: {},
+      },
+      transcript: "Dor no peito.",
+      state: createEmptyClinicalState(),
+      report: {
+        ...emptyReport,
+        soap: {
+          ...emptyReport.soap,
+          objective: "ECG realizado na admissão.",
+          plan: "ECG realizado.",
+        },
+      },
+    });
+    expect(result.status).toBe("FAIL");
+    expect(result.failSeverity).toBe("CRITICAL_FAIL");
+  });
 });

@@ -1,4 +1,5 @@
 import { diagnosesMatch } from "@/lib/clinical/provenance/aliases";
+import { isSafetyPinned } from "@/lib/clinical/safety/considerations";
 import type { ClinicalHypothesis, ClinicalState } from "@/lib/clinical/schemas";
 
 function rank(priority: ClinicalHypothesis["priority"]): number {
@@ -32,14 +33,17 @@ function mergeDangerous(
   previous: ClinicalHypothesis[],
   incoming: ClinicalHypothesis[],
 ): ClinicalHypothesis[] {
+  const pinned = previous.filter(isSafetyPinned);
   const merged = dedupeHypotheses([...incoming, ...previous], 8);
-  return merged.filter((item) => {
+  const kept = merged.filter((item) => {
     const update = incoming.find((candidate) =>
       diagnosesMatch(candidate.diagnosis, item.diagnosis),
     );
     if (!update) return true;
+    if (isSafetyPinned(item) && update.opposingFindings.length < 3) return true;
     return update.opposingFindings.length < 3;
-  }).slice(0, 3);
+  });
+  return dedupeHypotheses([...pinned, ...kept], 3);
 }
 
 export function stabilizeClinicalState(

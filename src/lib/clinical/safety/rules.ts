@@ -67,10 +67,13 @@ const THUNDERCLAP = [
 const NEURO = [
   "fraqueza de um lado",
   "fraqueza unilateral",
+  "fraqueza no braco",
   "hemiparesia",
   "afasia",
   "desvio de rima",
+  "boca torta",
   "fala enrolada",
+  "nao consegue falar",
   "alteracao subita da fala",
   "perda visual subita",
   "deficit neurologico",
@@ -83,6 +86,7 @@ const LOW_CONSCIOUSNESS = [
   "coma",
   "nao responde",
   "sonolento demais",
+  "confuso",
 ];
 const INFECTION = [
   "infeccao",
@@ -115,10 +119,39 @@ const BLEEDING = [
   "enterorragia",
   "sangue vivo",
 ];
+const GI_BLEED = [
+  "borra de cafe",
+  "hematemese",
+  "vomito com sangue",
+  "sangue em borra",
+  "hemorragia digestiva",
+  "sangramento digestivo",
+  "melena",
+];
+const HEAD_TRAUMA = [
+  "bateu a cabeca",
+  "trauma craniano",
+  "trauma cranioencefalico",
+  "tce",
+  "queda de escada",
+  "queda da propria altura",
+];
+const EXPOSURE_TOX = [
+  "substancia desconhecida",
+  "pupilas mioticas",
+  "frascos",
+  "exposicao desconhecida",
+];
 const ANTICOAG = ["varfarina", "warfarin", "anticoagulante", "rivaroxabana", "apixabana", "marevan"];
 const PREGNANCY = ["gestacao", "gestante", "gravida", "gravidez"];
 const INTOX = ["intoxicacao", "overdose", "ingeriu", "tomou comprimidos", "envenen"];
-const TRAUMA = ["trauma", "atropelamento", "queda de altura", "acidente"];
+const TRAUMA = [
+  "trauma",
+  "atropelamento",
+  "queda de altura",
+  "queda de escada",
+  "acidente",
+];
 
 function corpusOf(input: SafetyEvaluationInput): string {
   return [
@@ -206,7 +239,21 @@ export function collectSafetyTriggers(input: SafetyEvaluationInput): SafetyTrigg
     triggers.push(hit("seizure", "watch", ["convulsao"]));
   }
 
-  if (anyTerm(folded, BLEEDING)) {
+  if (anyTerm(folded, GI_BLEED)) {
+    const extra = [
+      hypotension ? "hipotensao" : "",
+      anyTerm(folded, SYNCOPE) ? "sincope" : "",
+      folded.includes("tontura") ? "tontura" : "",
+    ].filter(Boolean);
+    triggers.push(
+      hit("gi_bleeding", extra.length > 0 ? "critical" : "high", [
+        "sangramento_digestivo",
+        ...extra,
+      ]),
+    );
+  }
+
+  if (anyTerm(folded, BLEEDING) || anyTerm(folded, GI_BLEED)) {
     const extra = [
       hypotension ? "hipotensao" : "",
       anyTerm(folded, SYNCOPE) ? "sincope" : "",
@@ -214,8 +261,8 @@ export function collectSafetyTriggers(input: SafetyEvaluationInput): SafetyTrigg
       anyTerm(folded, PREGNANCY) ? "gestacao" : "",
       anyTerm(folded, SHOCK) ? "choque" : "",
     ].filter(Boolean);
-    if (extra.length > 0) {
-      triggers.push(hit("major_bleeding", "critical", ["sangramento", ...extra]));
+    if (extra.length > 0 || anyTerm(folded, GI_BLEED)) {
+      triggers.push(hit("major_bleeding", extra.length > 0 ? "critical" : "high", ["sangramento", ...extra]));
     }
   }
 
@@ -223,7 +270,7 @@ export function collectSafetyTriggers(input: SafetyEvaluationInput): SafetyTrigg
     triggers.push(hit("obstetric_pain_bleeding", "high", ["gestacao"]));
   }
 
-  if (anyTerm(folded, INTOX)) {
+  if (anyTerm(folded, INTOX) || anyTerm(folded, EXPOSURE_TOX)) {
     triggers.push(hit("intoxication", "high", ["intoxicacao"]));
   }
 
@@ -260,6 +307,29 @@ export function collectSafetyTriggers(input: SafetyEvaluationInput): SafetyTrigg
 
   if (anyTerm(folded, TRAUMA) && (anyTerm(folded, BLEEDING) || hypotension || anyTerm(folded, SHOCK))) {
     triggers.push(hit("trauma_hemorrhage", "critical", ["trauma"]));
+  }
+
+  if (
+    anyTerm(folded, HEAD_TRAUMA) &&
+    (anyTerm(folded, SYNCOPE) ||
+      anyTerm(folded, LOW_CONSCIOUSNESS) ||
+      anyTerm(folded, ANTICOAG))
+  ) {
+    triggers.push(
+      hit("head_trauma_high_risk", "critical", ["trauma_craniano"]),
+    );
+  }
+
+  if (
+    anyTerm(folded, ["murmurio diminuido", "murmurio vesicular diminuido", "trauma toracico"]) ||
+    ((anyTerm(folded, ["acidente de moto", "moto"]) || anyTerm(folded, TRAUMA)) &&
+      chest &&
+      anyTerm(folded, DYSPNEA) &&
+      (folded.includes("murmurio") || folded.includes("direita")))
+  ) {
+    triggers.push(
+      hit("chest_trauma_respiratory", "critical", ["trauma_toracico"]),
+    );
   }
 
   const seen = new Set<string>();

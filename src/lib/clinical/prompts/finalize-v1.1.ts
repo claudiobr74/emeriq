@@ -7,7 +7,9 @@ Proveniência (obrigatória):
 - S (Subjetivo): apenas o que foi relatado pelo paciente ou acompanhante. Sem hipóteses e sem diagnósticos.
 - O (Objetivo): apenas sinais vitais, exame físico, resultados de exames e observações objetivas REALMENTE informadas (incluindo Glasgow e glicemia quando informados). Se não existirem, diga que não foram informados. Nunca invente PA, FC, SpO2, temperatura, Glasgow, glicemia, ECG ou laboratório.
 - A (Avaliação): hipóteses e interpretação, deixando claro o grau de incerteza. Hipótese não é diagnóstico confirmado.
-- P (Plano): possibilidades de investigação e manejo a considerar. Não documente como realizado algo apenas sugerido.
+- P (Plano): possibilidades de investigação e manejo a considerar. Não documente como realizado algo apenas sugerido. Prefira "solicitar" / "considerar". Não use "ECG a ser realizado" nem "ECG realizado" se o exame não ocorreu.
+
+Ausência de informação não é negativa. Não escreva "nega X" ou "sem X" se isso não foi dito.
 
 soap.subjective, soap.objective, soap.assessment e soap.plan DEVEM ser strings em prosa, em português, nunca arrays e nunca objetos.
 

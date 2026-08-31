@@ -8,7 +8,7 @@ import {
   isAppwriteConfigured,
 } from "@/lib/env";
 import { getSessionSecret } from "@/lib/appwrite/session";
-import { createEmptyClinicalState } from "@/lib/clinical/clinical-state";
+import { createEmptyClinicalState, migrateClinicalState } from "@/lib/clinical/clinical-state";
 import {
   clinicalStateSchema,
   finalClinicalReportSchema,
@@ -195,7 +195,10 @@ function fromRow(raw: Record<string, unknown>): ConsultationRow {
       502,
     );
   }
-  return parsed.data;
+  return {
+    ...parsed.data,
+    clinical_state: migrateClinicalState(parsed.data.clinical_state),
+  };
 }
 
 function assertOwner(row: ConsultationRow, userId: string): ConsultationRow {

@@ -66,7 +66,16 @@ export const DIAGNOSIS_ALIASES: readonly DiagnosisAlias[] = [
   },
   {
     canonical: "sangramento_digestivo",
-    labels: ["sangramento digestivo", "hemorragia digestiva", "hda", "hdb", "gi bleed"],
+    labels: [
+      "sangramento digestivo",
+      "hemorragia digestiva",
+      "hda",
+      "hdb",
+      "gi bleed",
+      "hematemese",
+      "borra de cafe",
+      "vomito com sangue",
+    ],
   },
   {
     canonical: "gravidez_ectopica",
@@ -95,11 +104,13 @@ export const DIAGNOSIS_ALIASES: readonly DiagnosisAlias[] = [
       "hematoma subdural",
       "hematoma epidural",
       "hematoma extradural",
+      "sangramento intracraniano",
+      "hic",
     ],
   },
   {
     canonical: "pneumotorax",
-    labels: ["pneumotorax", "pneumothorax"],
+    labels: ["pneumotorax", "pneumothorax", "pneumotorax hipertensivo"],
   },
 ];
 

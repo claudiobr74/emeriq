@@ -66,11 +66,15 @@ aceita atualização só de estado (vitais/achados manuais).
 
 ## Estado clínico
 
-`ClinicalState` (Zod, `src/lib/clinical/schemas.ts`) preserva a separação de
+`ClinicalState` (Zod, `src/lib/clinical/schemas.ts`, `schemaVersion` **1.3**) preserva a separação de
 proveniência: relato do paciente, achados observados pelo médico, sinais vitais,
 resultados de exames, inferências e sugestões da IA. Sinais vitais: PA, FC, SpO₂,
 FR, Temperatura, **Glasgow** e Glicemia. Glasgow alimenta a Safety Layer
 (`altered_level_of_consciousness`) — trigger, não diagnóstico.
+
+Presença de sintomas-chave usa tri-state (`positive` | `negative_explicit` | `unknown`).
+Ausência de menção **não** vira negativa. A Safety Layer pode injetar
+`SafetyMandatoryConsideration` em `dangerousDifferentials` (não é diagnóstico).
 
 ## Não faz parte da arquitetura
 

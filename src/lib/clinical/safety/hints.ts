@@ -17,6 +17,12 @@ const TRIGGER_REEVALUATION_HINTS: Record<string, string> = {
   hypoglycemia: "Há glicemia explicitamente baixa. Reavalie hipoglicemia.",
   hemodynamic_instability: "Reavalie choque e perfusão, sem inventar a causa.",
   trauma_hemorrhage: "Reavalie hemorragia traumática e via aérea.",
+  head_trauma_high_risk:
+    "Trauma craniano de risco. Considere TCE e hemorragia intracraniana, sem confirmá-los.",
+  chest_trauma_respiratory:
+    "Trauma torácico com compromisso respiratório. Considere pneumotórax, sem confirmá-lo.",
+  gi_bleeding:
+    "Há sangramento digestivo sugerido. Considere hemorragia digestiva, sem confirmar o sítio.",
   altered_level_of_consciousness:
     "Há alteração do nível de consciência. Reavalie via aérea e causas reversíveis, sem fechar diagnóstico.",
   altered_mental_status:

@@ -13,13 +13,26 @@ export interface ProvenanceFlag {
   detail: string;
 }
 
-const PERFORMED_PATTERNS = [
-  /\becg\s+realizado\b/gi,
-  /\beletrocardiograma\s+realizado\b/gi,
-  /\btrombolise\s+realizada\b/gi,
-  /\bintubad[oa]\b/gi,
-  /\badrenalina\s+administrada\b/gi,
-];
+export function claimsPerformedIntervention(text: string): boolean {
+  const folded = foldPt(text);
+  if (!folded) return false;
+  if (
+    folded.includes("nao realizado") ||
+    folded.includes("ainda nao") ||
+    folded.includes("a ser realizado") ||
+    folded.includes("sera realizado") ||
+    folded.includes("nao foi realizado")
+  ) {
+    return false;
+  }
+  return (
+    /\becg realizado\b/.test(folded) ||
+    /\beletrocardiograma realizado\b/.test(folded) ||
+    /\btrombolise realizada\b/.test(folded) ||
+    /\bintubad[oa]\b/.test(folded) ||
+    /\badrenalina administrada\b/.test(folded)
+  );
+}
 
 const CONFIRMED_DX = [
   /\bdiagnostico\s+confirmado\b/gi,
@@ -82,16 +95,14 @@ export function validateAndSanitizeSoap(
     objective = objective.replace(/\bpa[^\n.]*\.?/gi, "Pressão arterial não informada. ");
   }
 
-  for (const pattern of PERFORMED_PATTERNS) {
-    if (pattern.test(objective) || pattern.test(plan) || pattern.test(assessment)) {
-      flags.push({
-        code: "intervention_as_performed",
-        detail: "Intervenção descrita como realizada.",
-      });
-      objective = replaceAll(objective, pattern, "exame/conduta a considerar");
-      plan = replaceAll(plan, pattern, "considerar a conduta (não registrada como realizada)");
-      assessment = replaceAll(assessment, pattern, "conduta apenas considerada");
-    }
+  if (claimsPerformedIntervention(`${objective}\n${plan}\n${assessment}`)) {
+    flags.push({
+      code: "intervention_as_performed",
+      detail: "Intervenção descrita como realizada.",
+    });
+    objective = objective.replace(/\becg\s+realizado\b/gi, "ECG a considerar");
+    plan = plan.replace(/\becg\s+realizado\b/gi, "considerar ECG (não registrado como realizado)");
+    assessment = assessment.replace(/\becg\s+realizado\b/gi, "ECG apenas considerado");
   }
 
   for (const pattern of CONFIRMED_DX) {

@@ -21,3 +21,4 @@ export type { SafetyEvaluationInput, SafetyPriority, SafetyTrigger } from "@/lib
 export { SAFETY_THRESHOLDS } from "@/lib/clinical/safety/thresholds";
 export { hasCriticalSafetySignal, parseSystolic } from "@/lib/clinical/safety/rules";
 export { reevaluationHintForTrigger } from "@/lib/clinical/safety/hints";
+export { CLINICAL_SAFETY_VERSION } from "@/lib/clinical/versions";
