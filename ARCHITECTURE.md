@@ -76,6 +76,26 @@ Presença de sintomas-chave usa tri-state (`positive` | `negative_explicit` | `u
 Ausência de menção **não** vira negativa. A Safety Layer pode injetar
 `SafetyMandatoryConsideration` em `dangerousDifferentials` (não é diagnóstico).
 
+Versões de engenharia (`src/lib/clinical/versions.ts` e `prompts/version.ts`):
+`CLINICAL_STATE_VERSION`, `CLINICAL_SAFETY_VERSION`, `CLINICAL_KNOWLEDGE_VERSION` e
+`CLINICAL_PROMPT_VERSION` = **1.3**. Consultas ativas antigas passam por
+`migrateClinicalState` na leitura; SOAP já finalizado **não** é recalculado.
+
+## Evaluation harness
+
+Harness sintético em `evaluation/`. Não é validação clínica nem certificação.
+
+| Script | Função |
+| --- | --- |
+| `pnpm eval:clinical` | suite completa + Clinical Quality Gates (`evaluation/clinical-gates.ts`) |
+| `pnpm eval:clinical:critical` | golden set (`evaluation/golden-critical/`) |
+| `pnpm eval:clinical:stability` | golden set, 3 execuções |
+| `pnpm release-check` | lint → typecheck → test → critical eval → full eval → build |
+| `pnpm build` | `next build` (compile-only; Vercel/hosting não chama OpenAI) |
+| `pnpm build:unsafe` | o mesmo compile-only, sem gate clínico — **DEV/UNSAFE ONLY** |
+
+Se qualquer gate clínico falhar, `eval:clinical` sai com código 1.
+
 ## Não faz parte da arquitetura
 
 Groq, Web Speech API, Supabase, Firebase, Clerk, Auth0, NextAuth, Nhost/Redis,
