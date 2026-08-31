@@ -16,10 +16,8 @@ import { Account } from "node-appwrite";
 import { createSessionClient, toAuthUser } from "@/lib/appwrite/session";
 import {
   ensureJsonContentType,
-  errorResponse,
   readJsonLimited,
 } from "@/lib/http";
-import { AppError } from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -79,12 +77,6 @@ export async function POST(request: Request) {
     return response;
   } catch (error) {
     const mapped = mapAuthError(error);
-    if (error instanceof AppError && error.code === "appwrite_not_configured") {
-      return errorResponse(error, {
-        message: "Não foi possível entrar agora. Tente novamente.",
-        code: "unknown_error",
-      });
-    }
     if (mapped.code === "invalid_credentials" && rateLimitKey) {
       recordFailedLogin(rateLimitKey);
     }

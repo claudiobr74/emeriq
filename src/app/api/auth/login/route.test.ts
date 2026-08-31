@@ -34,6 +34,7 @@ import {
   LOGIN_RATE_LIMIT,
   resetLoginRateLimitStore,
 } from "@/lib/auth/rate-limit";
+import { AppError } from "@/lib/errors";
 
 function req(body: unknown, ip = "203.0.113.10") {
   return new Request("http://localhost/api/auth/login", {
@@ -97,6 +98,20 @@ describe("POST /api/auth/login", () => {
     const res = await POST(req({ email: "", password: "" }));
     expect(res.status).toBe(401);
     expect(createEmailPasswordSession).not.toHaveBeenCalled();
+  });
+
+  it("does not expose Appwrite configuration errors to the client", async () => {
+    createEmailPasswordSession.mockRejectedValue(
+      new AppError("Appwrite não configurado.", "appwrite_not_configured", 503),
+    );
+    const res = await POST(
+      req({ email: "ana@hospital.org", password: "correct-password" }),
+    );
+    expect(res.status).toBe(503);
+    const json = (await res.json()) as { error: string; code: string };
+    expect(json.error).toBe("Não foi possível entrar agora. Tente novamente.");
+    expect(json.error).not.toMatch(/Appwrite/i);
+    expect(json.code).toBe("unknown_error");
   });
 
   it("normalizes email case before creating the session", async () => {
