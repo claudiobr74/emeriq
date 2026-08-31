@@ -43,8 +43,8 @@ function parseEnvValue(content: string, name: string): string | undefined {
   return undefined;
 }
 
-export function getGroqApiKey(): string | undefined {
-  const fromProcess = process.env.GROQ_API_KEY?.trim();
+function readEnvVar(name: string): string | undefined {
+  const fromProcess = process.env[name]?.trim();
   if (fromProcess) return fromProcess;
 
   const files = [
@@ -54,9 +54,12 @@ export function getGroqApiKey(): string | undefined {
 
   for (const file of files) {
     try {
-      const value = parseEnvValue(decodeEnvFile(fs.readFileSync(file)), "GROQ_API_KEY");
+      const value = parseEnvValue(
+        decodeEnvFile(fs.readFileSync(/*turbopackIgnore: true*/ file)),
+        name,
+      );
       if (value) {
-        process.env.GROQ_API_KEY = value;
+        process.env[name] = value;
         return value;
       }
     } catch {
@@ -65,4 +68,60 @@ export function getGroqApiKey(): string | undefined {
   }
 
   return undefined;
+}
+
+export function getOpenAiApiKey(): string | undefined {
+  return readEnvVar("OPENAI_API_KEY");
+}
+
+/** Mensagem de chave ausente, específica do host (Vercel ≠ Cloud Agent). */
+export function missingOpenAiKeyMessage(): string {
+  if (process.env.VERCEL) {
+    return (
+      "OPENAI_API_KEY não encontrada neste deploy da Vercel. " +
+      "As chaves do Cloud Agent não entram automaticamente aqui. " +
+      "No projeto emeriq: Settings → Environment Variables, defina OPENAI_API_KEY " +
+      "para Production e Preview e faça Redeploy."
+    );
+  }
+  if (process.env.NETLIFY) {
+    return (
+      "OPENAI_API_KEY não encontrada. No Netlify, defina OPENAI_API_KEY em " +
+      "Site configuration → Environment variables (Production e Preview) e faça um novo deploy."
+    );
+  }
+  return (
+    "OPENAI_API_KEY não encontrada. No uso local, crie .env.local na pasta do package.json " +
+    "(UTF-8) com OPENAI_API_KEY=sk-... (sem aspas)."
+  );
+}
+
+/** Projeto Appwrite EmerIQ (região NYC). */
+export const APPWRITE_DEFAULT_PROJECT_ID = "6a94b9240022214b03fe";
+export const APPWRITE_DEFAULT_ENDPOINT = "https://nyc.cloud.appwrite.io/v1";
+
+export function getAppwriteEndpoint(): string | undefined {
+  const url = readEnvVar("APPWRITE_ENDPOINT") ?? APPWRITE_DEFAULT_ENDPOINT;
+  return url.replace(/\/$/, "");
+}
+
+export function getAppwriteProjectId(): string | undefined {
+  return readEnvVar("APPWRITE_PROJECT_ID") ?? APPWRITE_DEFAULT_PROJECT_ID;
+}
+
+/** API key server-side. Nunca `NEXT_PUBLIC_*`. */
+export function getAppwriteApiKey(): string | undefined {
+  return readEnvVar("APPWRITE_API_KEY");
+}
+
+export function getAppwriteDatabaseId(): string {
+  return readEnvVar("APPWRITE_DATABASE_ID") ?? "emeriq";
+}
+
+export function getAppwriteTableId(): string {
+  return readEnvVar("APPWRITE_TABLE_ID") ?? "consultations";
+}
+
+export function isAppwriteConfigured(): boolean {
+  return Boolean(getAppwriteProjectId() && getAppwriteApiKey());
 }
