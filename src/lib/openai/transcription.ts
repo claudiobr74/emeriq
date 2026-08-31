@@ -1,9 +1,9 @@
 import { toFile } from "openai";
 import { AI_CONFIG, type TranscriptionModelId } from "@/config/ai";
-import { WHISPER_PROMPT } from "@/lib/clinical/prompts";
 import { AppError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import { getOpenAiClient } from "@/lib/openai/client";
+import { stripTranscriptionLeak } from "@/lib/transcription/sanitize";
 
 export async function transcribeAudio(input: {
   audio: File | Blob;
@@ -19,7 +19,7 @@ export async function transcribeAudio(input: {
   }
 
   const file = await toFile(bytes, input.filename);
-  const prompt = [WHISPER_PROMPT, input.promptTail].filter(Boolean).join(" ");
+  const prompt = stripTranscriptionLeak(input.promptTail ?? "").slice(0, 800);
 
   logger.transcription("sending chunk", {
     bytes: bytes.length,
@@ -33,12 +33,12 @@ export async function transcribeAudio(input: {
         model: input.model,
         language: AI_CONFIG.whisperLanguage,
         response_format: "json",
-        prompt: prompt.slice(0, 800),
+        ...(prompt ? { prompt } : {}),
       },
       { timeout: AI_CONFIG.timeouts.transcriptionMs },
     );
 
-    return (result.text ?? "").trim();
+    return stripTranscriptionLeak(result.text ?? "");
   } catch (error) {
     logger.error("transcription failed", error);
     throw new AppError(

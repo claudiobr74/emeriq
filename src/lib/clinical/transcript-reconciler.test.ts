@@ -24,4 +24,12 @@ describe("transcript reconciler", () => {
     const tail = transcriptTail("a".repeat(400), 180);
     expect(tail.length).toBeLessThanOrEqual(180);
   });
+
+  it("does not feed leaked glossary back as prompt tail", () => {
+    const tail = transcriptTail(
+      "Paciente com dor no peito. Termos frequentes: dispneia, síncope, dor torácica, saturação, hipertensão, hipotensão, diabetes, anticoagulante, ECG.",
+    );
+    expect(tail).toContain("dor no peito");
+    expect(tail).not.toContain("Termos frequentes");
+  });
 });

@@ -1,3 +1,5 @@
+import { stripTranscriptionLeak } from "@/lib/transcription/sanitize";
+
 function normalizeWhitespace(value: string): string {
   return value.replace(/\s+/g, " ").trim();
 }
@@ -82,7 +84,7 @@ function findOriginalOverlapEnd(incoming: string, comparableLength: number): num
 }
 
 export function transcriptTail(text: string, maxChars = 180): string {
-  const normalized = normalizeWhitespace(text);
+  const normalized = normalizeWhitespace(stripTranscriptionLeak(text));
   if (normalized.length <= maxChars) return normalized;
   return normalized.slice(-maxChars);
 }

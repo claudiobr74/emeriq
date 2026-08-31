@@ -1,4 +1,5 @@
 import { reconcileTranscript } from "@/lib/clinical/transcript-reconciler";
+import { stripTranscriptionLeak } from "@/lib/transcription/sanitize";
 
 export type TranscriptionStatus =
   | "idle"
@@ -80,16 +81,16 @@ export function transcriptionReducer(
       // item_id e recomeçar quando o item muda (não substituir o partial).
       const incoming = action.text;
       const sameItem = state.partialItemId === action.id;
-      const partial = sameItem ? `${state.partial}${incoming}` : incoming;
+      const raw = sameItem ? `${state.partial}${incoming}` : incoming;
       return {
         ...state,
-        partial,
+        partial: stripTranscriptionLeak(raw, "partial"),
         partialItemId: action.id,
       };
     }
 
     case "completed": {
-      const text = action.text.trim();
+      const text = stripTranscriptionLeak(action.text);
       // Consolida no confirmed sem duplicar (reconciliador cuida de overlaps),
       // e limpa o partial (nunca incorporado duas vezes).
       const confirmed = text
@@ -116,7 +117,7 @@ export function transcriptionReducer(
     case "hydrate":
       return {
         ...initialTranscriptionState(),
-        confirmed: action.confirmed,
+        confirmed: stripTranscriptionLeak(action.confirmed),
       };
 
     case "reset":

@@ -1,6 +1,5 @@
 import { AI_CONFIG, type TranscriptionModelId } from "@/config/ai";
 import { getOpenAiApiKey, missingOpenAiKeyMessage } from "@/lib/env";
-import { WHISPER_PROMPT } from "@/lib/clinical/prompts";
 import { AppError } from "@/lib/errors";
 
 export interface EphemeralRealtimeSession {
@@ -46,7 +45,6 @@ export async function createRealtimeTranscriptionSession(
               transcription: {
                 model,
                 language: AI_CONFIG.whisperLanguage,
-                prompt: WHISPER_PROMPT.slice(0, 800),
               },
               turn_detection: { type: "server_vad", silence_duration_ms: 500 },
             },

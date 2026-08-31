@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { WHISPER_PROMPT } from "@/lib/clinical/prompts";
 import {
   acceptedAudioSequence,
   allSegmentsSettled,
@@ -154,6 +155,19 @@ describe("transcription reducer", () => {
     expect(hasFailedSegments(state)).toBe(true);
     expect(allSegmentsSettled(state)).toBe(true);
     expect(acceptedAudioSequence(state)[0]?.status).toBe("failed");
+  });
+
+  it("strips Whisper glossary leak from completed transcript", () => {
+    const state = run([
+      { type: "audioAccepted", id: "1" },
+      {
+        type: "completed",
+        id: "1",
+        text: `Testando um dois três. ${WHISPER_PROMPT}`,
+      },
+    ]);
+    expect(state.confirmed).toBe("Testando um dois três.");
+    expect(state.confirmed).not.toContain("Termos frequentes");
   });
 
   it("reset clears everything", () => {

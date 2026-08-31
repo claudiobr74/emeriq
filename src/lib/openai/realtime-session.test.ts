@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/env", () => ({ getOpenAiApiKey: () => "sk-test-key" }));
+vi.mock("@/lib/env", () => ({
+  getOpenAiApiKey: () => "sk-test-key",
+  missingOpenAiKeyMessage: () => "OPENAI_API_KEY não encontrada.",
+}));
 
 import { createRealtimeTranscriptionSession } from "@/lib/openai/realtime-session";
 import { AppError } from "@/lib/errors";
@@ -43,6 +46,8 @@ describe("createRealtimeTranscriptionSession", () => {
     expect(session.model).toBe("gpt-4o-mini-transcribe");
     expect(capturedBody).toContain("gpt-4o-mini-transcribe");
     expect(capturedBody).not.toContain("sk-test-key");
+    expect(capturedBody).not.toContain("Termos frequentes");
+    expect(capturedBody).not.toContain("WHISPER");
   });
 
   it("throws on non-ok response", async () => {
