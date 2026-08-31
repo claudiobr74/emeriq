@@ -74,6 +74,28 @@ export function getOpenAiApiKey(): string | undefined {
   return readEnvVar("OPENAI_API_KEY");
 }
 
+/** Mensagem de chave ausente, específica do host (Vercel ≠ Cloud Agent). */
+export function missingOpenAiKeyMessage(): string {
+  if (process.env.VERCEL) {
+    return (
+      "OPENAI_API_KEY não encontrada neste deploy da Vercel. " +
+      "As chaves do Cloud Agent não entram automaticamente aqui. " +
+      "No projeto emeriq: Settings → Environment Variables, defina OPENAI_API_KEY " +
+      "para Production e Preview e faça Redeploy."
+    );
+  }
+  if (process.env.NETLIFY) {
+    return (
+      "OPENAI_API_KEY não encontrada. No Netlify, defina OPENAI_API_KEY em " +
+      "Site configuration → Environment variables (Production e Preview) e faça um novo deploy."
+    );
+  }
+  return (
+    "OPENAI_API_KEY não encontrada. No uso local, crie .env.local na pasta do package.json " +
+    "(UTF-8) com OPENAI_API_KEY=sk-... (sem aspas)."
+  );
+}
+
 /** Projeto Appwrite EmerIQ (região NYC). */
 export const APPWRITE_DEFAULT_PROJECT_ID = "6a94b9240022214b03fe";
 export const APPWRITE_DEFAULT_ENDPOINT = "https://nyc.cloud.appwrite.io/v1";

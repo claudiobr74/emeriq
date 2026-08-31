@@ -53,11 +53,14 @@ A chave fica só no `.env.local`. Nunca use `NEXT_PUBLIC_OPENAI_API_KEY` e não 
    | `APPWRITE_PROJECT_ID` | `6a94b9240022214b03fe` |
    | `APPWRITE_API_KEY` | API key server-only (nunca `NEXT_PUBLIC_*`) |
 
-4. No Appwrite Console: crie o projeto e uma API key com `tables.write`,
+4. Escopo das variáveis: **Production**, **Preview** e **Development**.
+   Depois **Redeploy** o deployment que você está usando. Chaves do
+   Cloud Agent / Cursor **não** entram automaticamente na Vercel.
+5. No Appwrite Console: crie o projeto e uma API key com `tables.write`,
    `columns.write`, `rows.read` e `rows.write`. Depois rode `pnpm appwrite:setup`.
-5. Confira `https://SEU-PROJETO.vercel.app/api/health` →
+6. Confira `https://SEU-PROJETO.vercel.app/api/health` →
    `{"openaiConfigured":true,"appwriteConfigured":true}`.
-6. Ative **Deployment Protection** (Vercel Authentication) enquanto não houver
+7. Ative **Deployment Protection** (Vercel Authentication) enquanto não houver
    login na aplicação — evita proxy aberto da OpenAI.
 
 A URL `https://….vercel.app` já é HTTPS (necessário para o microfone).

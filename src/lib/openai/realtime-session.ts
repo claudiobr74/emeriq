@@ -1,5 +1,5 @@
 import { AI_CONFIG, type TranscriptionModelId } from "@/config/ai";
-import { getOpenAiApiKey } from "@/lib/env";
+import { getOpenAiApiKey, missingOpenAiKeyMessage } from "@/lib/env";
 import { WHISPER_PROMPT } from "@/lib/clinical/prompts";
 import { AppError } from "@/lib/errors";
 
@@ -22,7 +22,7 @@ export async function createRealtimeTranscriptionSession(
   const apiKey = getOpenAiApiKey();
   if (!apiKey) {
     throw new AppError(
-      "OPENAI_API_KEY não encontrada.",
+      missingOpenAiKeyMessage(),
       "missing_api_key",
       500,
     );
