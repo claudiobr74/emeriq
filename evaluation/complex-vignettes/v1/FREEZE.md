@@ -14,6 +14,7 @@ Engenharia apenas. Não é validação clínica.
 | Prompt / State / Safety / Knowledge | `1.3` |
 | Complex scorer | `1.0` (empilha métricas novas sobre `evaluation/scorer.ts`) |
 | Candidate model mais forte no repo | **nenhum** — sem A/B nesta rodada |
+| Eval-only completion tokens | `EVAL_MAX_COMPLETION_TOKENS=3200` no processo do ECCV (produção permanece 1400/1800). Motivo: ClinicalUpdate JSON truncava em vinhetas longas. **Não** altera `AI_CONFIG` no app. |
 
 ## Hash
 
