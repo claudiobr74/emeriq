@@ -46,6 +46,9 @@ yarn-error.log*
 evaluation/reports/*.json
 evaluation/reports/*.md
 !evaluation/reports/.gitkeep
+!evaluation/reports/failure-analysis-v1.3.md
+!evaluation/reports/v1.3-before-after.md
+!evaluation/reports/model-comparison-v1.3.md
 
 # Next.js auto-generated agent rules
 /AGENTS.md
