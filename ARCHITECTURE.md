@@ -90,6 +90,8 @@ Harness sintético em `evaluation/`. Não é validação clínica nem certifica�
 | `pnpm eval:clinical` | suite completa + Clinical Quality Gates (`evaluation/clinical-gates.ts`) |
 | `pnpm eval:clinical:critical` | golden set (`evaluation/golden-critical/`) |
 | `pnpm eval:clinical:stability` | golden set, 3 execuções |
+| `pnpm eval:clinical:blind` | holdout v1.4 (100 casos) — **release/manual gate**, não entra no `build` |
+| `pnpm eval:clinical:blind:stability` | 30 críticos do holdout × 3 |
 | `pnpm release-check` | lint → typecheck → test → critical eval → full eval → build |
 | `pnpm build` | `next build` (compile-only; Vercel/hosting não chama OpenAI) |
 | `pnpm build:unsafe` | o mesmo compile-only, sem gate clínico — **DEV/UNSAFE ONLY** |

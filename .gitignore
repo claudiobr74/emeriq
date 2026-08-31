@@ -51,6 +51,17 @@ evaluation/reports/dumps/
 !evaluation/reports/v1.3-before-after.md
 !evaluation/reports/model-comparison-v1.3.md
 
+# Blind holdout: FIRST_RUN is immutable and must be committed.
+evaluation/blind/results/dumps/
+evaluation/blind/results/*.json
+evaluation/blind/results/*.md
+!evaluation/blind/results/.gitkeep
+!evaluation/blind/results/FIRST_RUN.json
+!evaluation/blind/results/FIRST_RUN.md
+!evaluation/blind/results/FIRST_RUN_FAILURE_ANALYSIS.md
+!evaluation/blind/results/STABILITY_RUN.json
+!evaluation/blind/results/STABILITY_RUN.md
+
 # Next.js auto-generated agent rules
 /AGENTS.md
 /CLAUDE.md
